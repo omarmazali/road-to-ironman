@@ -293,7 +293,7 @@ input[type=checkbox]{width:22px;height:22px;flex:0 0 auto;padding:0;accent-color
 </div>
 
 <div class="toast" id="toast"></div>
-<footer class="footer">Road to Ironman · données locales · export/import JSON · V42</footer>
+<footer class="footer">Road to Ironman · données locales · export/import JSON · V43</footer>
 </div>
 
 <script>
@@ -340,15 +340,16 @@ const REHAB_PROGRAM={
  ]
 };
 
-const SCHEDULE={
- 1:[{type:"Musculation",name:"Upper A",time:"Matin"}],
- 2:[{type:"Musculation",name:"Lower A",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
- 3:[{type:"Récupération",name:"Marche / mobilité légère",time:"Journée"}],
- 4:[{type:"Musculation",name:"Upper B",time:"Matin"}],
- 5:[{type:"Musculation",name:"Lower B",time:"Matin"}],
- 6:[{type:"Musculation",name:"Upper B",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
- 0:[{type:"Repos",name:"Repos",time:"Journée"}]
-};
+const PROGRAM_START="2026-08-30";
+const SCHEDULE=[
+ [{type:"Musculation",name:"Upper A",time:"Matin"}],
+ [{type:"Musculation",name:"Lower A",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
+ [{type:"Récupération",name:"Marche / mobilité légère",time:"Journée"}],
+ [{type:"Musculation",name:"Upper B",time:"Matin"}],
+ [{type:"Musculation",name:"Lower B",time:"Matin"}],
+ [{type:"Musculation",name:"Upper B",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
+ [{type:"Repos",name:"Repos",time:"Journée"}]
+];
 
 const BASELINE={
  "Dos":[["Bird-dog","6/côté · 0/10"],["Side plank","20 s · 0/10"],["Hip hinge","10 reps · 0/10"]],
@@ -415,7 +416,9 @@ function prettyExercise(log){
  return names.find(n=>safeSlug(n)===raw)||names.find(n=>raw.includes(safeSlug(n)))||log.displayName||log.exercise||"Exercice";
 }
 function formatResistance(v){const s=String(v??"").trim();return s===""?"non renseigné":s}
-function dayPlan(){return SCHEDULE[new Date().getDay()]||[]}
+function localDateKey(date=new Date()){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return `${y}-${m}-${d}`}
+function programDayIndex(){const start=new Date(`${PROGRAM_START}T12:00:00`),now=new Date(`${localDateKey()}T12:00:00`);const diff=Math.floor((now-start)/86400000);return ((diff%SCHEDULE.length)+SCHEDULE.length)%SCHEDULE.length}
+function dayPlan(){return SCHEDULE[programDayIndex()]||[]}
 function activeEndurance(){return dayPlan().find(x=>["Natation","Course","Marche"].includes(x.type))}
 
 
