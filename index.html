@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d10">
+<title>Road to Ironman</title>
+<style>
+:root{
+  --bg:#0a0d10;--panel:#11161b;--panel2:#171d24;--line:#26303a;--text:#f4f6f8;--muted:#96a1ae;
+  --accent:#d7ff4f;--good:#65d69b;--warn:#f4c76b;--bad:#ff7b7b
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif}
+button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}
+body{min-height:100vh}
+.app{max-width:1180px;margin:auto;padding:18px 18px 56px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:14px}
+.brand{font-size:24px;font-weight:850;letter-spacing:-.04em}.caption,.small{font-size:12px;color:var(--muted)}
+.topRight{display:flex;align-items:center;gap:10px}.date{font-size:12px;color:var(--muted)}
+.nav{display:flex;gap:7px;flex-wrap:wrap;position:sticky;top:0;z-index:100;padding:8px 0 12px;background:linear-gradient(var(--bg) 88%,transparent)}
+.nav button{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:9px 12px;cursor:pointer;min-height:44px;touch-action:manipulation;position:relative;z-index:101;-webkit-user-select:none;user-select:none}
+.nav button.active{background:var(--accent);border-color:var(--accent);color:#0a0d10;font-weight:800}
+.view{display:none}.view.active{display:block}
+.hero{background:linear-gradient(135deg,#151b22,#101318);border:1px solid var(--line);border-radius:18px;padding:18px}
+.heroTitle{font-size:30px;font-weight:850;letter-spacing:-.05em}
+.metricGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+.metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.metric .value{font-size:21px;font-weight:800}.metric .label{font-size:11px;color:var(--muted);margin-top:3px}
+.grid{display:grid;gap:12px}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px}
+.sectionTitle{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin:18px 0 10px}
+.sectionTitle h2{margin:0;font-size:17px}.sectionTitle .sub{font-size:12px;color:var(--muted)}
+.btn{border:0;border-radius:10px;padding:9px 12px;background:var(--accent);color:#0a0d10;font-weight:800;cursor:pointer;min-height:44px;touch-action:manipulation;position:relative;z-index:2;-webkit-user-select:none;user-select:none}
+.btn.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+.btn.danger{background:#2a1417;border:1px solid #4d262d;color:#ffb6b6}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+input,select{width:100%;background:#0d1115;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 10px;min-height:44px;touch-action:manipulation}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+input[type=checkbox]{width:22px;height:22px;flex:0 0 auto;padding:0;accent-color:var(--accent);min-height:22px}
+.label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
+.form2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.form4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.rehabCompareRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,44%);gap:14px;align-items:center;min-width:0}.rehabCompareLeft{min-width:0}.rehabCompareRight{min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;justify-self:stretch}.rehabCompareRight .tag{white-space:normal;max-width:100%;text-align:right;line-height:1.35}
+.row:last-child{border-bottom:0}
+.left{display:flex;align-items:center;gap:9px;min-width:0}.left span{word-break:break-word}
+.tag,.countBadge{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:11px;white-space:nowrap}
+.countBadge{border-color:#53641c;color:var(--accent);font-weight:700}.countBadge.complete{border-color:#245a41;color:var(--good)}
+.status{font-size:11px;border-radius:999px;padding:5px 8px;border:1px solid var(--line)}
+.status.good{color:var(--good);border-color:#245a41}.status.active{color:var(--accent);border-color:#53641c}.status.warn{color:var(--warn);border-color:#6c5525}
+.progress{height:8px;background:#1d252d;border-radius:999px;overflow:hidden}.bar{height:100%;background:var(--accent);border-radius:999px}
+.sessionBand{background:linear-gradient(180deg,#121920,#11161b);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.bandHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.bandType{font-size:11px;color:var(--muted);letter-spacing:.08em}.bandTitle{font-size:17px;font-weight:800}
+.exercise{padding:13px 0;border-bottom:1px solid var(--line)}.exercise:last-child{border-bottom:0}
+.exerciseHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.exerciseName{font-weight:780}.exerciseMeta{font-size:12px;color:var(--muted);margin-top:3px}
+.activeRow{display:grid;grid-template-columns:repeat(4,minmax(100px,1fr)) 110px;gap:8px;align-items:end;margin-top:10px}
+.activeRow.rehab{grid-template-columns:1.2fr 1fr 120px 110px}
+.historyLine{margin-top:8px;padding:8px 10px;border-radius:9px;background:#0e1318;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.historyLine b{color:var(--text)}
+.miniGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpi{font-size:25px;font-weight:850;letter-spacing:-.04em}
+.performanceCard{padding:0;background:transparent;border:0}
+.performanceRow{padding:15px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:12px}
+.performanceRow:last-child{margin-bottom:0}
+.performanceMain{display:flex;justify-content:space-between;gap:14px;align-items:center}.performanceMain .name{font-weight:780}.performanceMain .stats{font-size:12px;color:var(--muted);text-align:right}
+.performanceSub{display:flex;gap:14px;flex-wrap:wrap;margin-top:5px;font-size:11px;color:var(--muted)}
+.details{margin-top:9px;border-top:1px solid var(--line);padding-top:8px}.details summary{cursor:pointer;color:var(--muted);font-size:12px}
+.historyScroll{max-height:240px;overflow:auto}
+.empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
+.list{max-height:600px;overflow:auto}
+.notice{padding:11px 12px;border-radius:10px;background:#0e1419;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.modalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:60;padding:14px}
+.modal{width:min(600px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.modalHeader{display:flex;justify-content:space-between;align-items:center}.close{border:0;background:transparent;color:var(--muted);font-size:22px;cursor:pointer}
+.toast{position:fixed;right:16px;bottom:16px;background:#f4f6f8;color:#0a0d10;padding:10px 13px;border-radius:11px;font-size:12px;font-weight:800;display:none;z-index:70}
+.footer{margin-top:20px;text-align:center;font-size:11px;color:var(--muted)}
+
+.performanceTopGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.performanceMetric{min-height:112px}
+.performanceMetric .label{font-size:12px;font-weight:700;color:var(--text);margin:0 0 9px}
+.performanceMetric .kpi{font-size:24px}
+.performanceMetric .small{line-height:1.45}
+.suppPreview{min-height:44px;display:flex;align-items:center;padding:9px 10px;border:1px dashed var(--line);border-radius:10px;color:var(--text);font-size:13px;font-weight:700;background:#0e1318}
+.supplementDose{display:inline-flex;align-items:center;gap:6px;margin-left:6px}
+.status.locked{color:var(--muted);border-color:var(--line);background:#0e1318;opacity:.72}
+.exercise.locked{opacity:.58}
+.exercise.locked .exerciseName{color:var(--muted)}
+.exercise.locked .exerciseMeta{color:#6f7a86}
+.exercise.locked .progress{opacity:.45}
+.rehabLatest{margin-top:10px;padding:10px 11px;border:1px solid var(--line);background:#0e1318;border-radius:10px}
+.rehabLatestTitle{font-size:11px;color:var(--muted);margin-bottom:4px}
+.rehabLatestMain{font-size:12px;line-height:1.45}
+.rehabLatestMain b{color:var(--text)}
+#rehabPerformance{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+#rehabPerformance > .card{margin:0;min-width:0}
+@media(max-width:900px){#rehabPerformance{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}}
+@media(max-width:650px){#rehabPerformance{grid-template-columns:1fr;gap:18px}}
+@media(max-width:900px){.performanceTopGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){.performanceTopGrid{grid-template-columns:1fr;gap:12px}.performanceMetric{min-height:96px}}
+
+@media (max-width:700px){
+ .rehabCompareRow{grid-template-columns:1fr;gap:6px}.rehabCompareRight{text-align:left}.rehabCompareRight .tag{display:inline-flex;text-align:left}
+ .app{padding:12px 12px 72px}
+ .top{align-items:flex-start;flex-direction:column;gap:10px}
+ .topRight{width:100%;justify-content:space-between}
+ .nav{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:10px}
+ .nav::-webkit-scrollbar{display:none}
+ .nav button{flex:0 0 auto;min-width:max-content}
+ .heroTitle{font-size:25px;line-height:1.05}
+ .metricGrid,.g3,.form2,.form4,.activeRow,.activeRow.rehab{grid-template-columns:1fr}
+ .activeRow button,.activeRow.rehab button{grid-column:auto;width:100%}
+ .sessionBand,.card{overflow:visible}
+ .bandHeader,.exerciseHead{align-items:flex-start}
+ .bandTitle{font-size:16px}
+ .sectionTitle{align-items:flex-start;flex-direction:column}
+ .sectionTitle .sub{margin-top:2px}
+ .performanceMain{align-items:flex-start;flex-direction:column}
+ .performanceMain .stats{text-align:left}
+ .row{align-items:flex-start}
+ .row .actions{width:100%}
+ .row .actions .btn{flex:1 1 120px}
+ .modal{max-height:calc(100dvh - 24px);overflow:auto}
+}
+
+@media(max-width:900px){
+ .metricGrid,.g3{grid-template-columns:repeat(2,minmax(0,1fr))}.activeRow{grid-template-columns:1fr 1fr}.activeRow button{grid-column:span 2}.activeRow.rehab{grid-template-columns:1fr 1fr}
+}
+@media(max-width:650px){
+ .top{align-items:flex-start;flex-direction:column}.metricGrid,.g3,.form2,.form4,.activeRow,.activeRow.rehab{grid-template-columns:1fr}.activeRow button{grid-column:auto}
+}
+
+/* Training: blocs clairement séparés et contrôles compacts */
+#trainingDay{display:flex;flex-direction:column;gap:28px}
+#trainingDay > .sessionBand{margin:0}
+#trainingDay > .sessionBand + .sessionBand{margin-top:0}
+#trainingDay .bandType{font-size:10px}
+#trainingDay .bandTitle{font-size:16px}
+#trainingDay .exerciseName{font-size:15px}
+#trainingDay .exerciseMeta{font-size:11px}
+#trainingDay .activeRow .btn{font-size:12px;line-height:1.15;padding:9px 8px;white-space:nowrap}
+#trainingDay .loadTrend{display:inline-flex;align-items:center;justify-content:center;margin-left:7px;font-size:18px;line-height:1;font-weight:900;vertical-align:-2px}
+#trainingDay .loadTrend.up{color:var(--good)}
+#trainingDay .loadTrend.down{color:var(--bad)}
+#trainingDay .loadTrend.keep{color:var(--muted);font-size:16px}
+
+.rehab.noLoad{grid-template-columns:minmax(0,1fr) 120px 110px}
+.rehabUnit{color:var(--muted)}
+.loadTrend{display:inline-flex;align-items:center;justify-content:center;margin-left:6px;font-weight:900}
+.loadTrend.up{color:var(--good)} .loadTrend.down{color:var(--bad)} .loadTrend.keep{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+  <div><div class="brand">ROAD TO IRONMAN</div><div class="caption">Système personnel de progression</div></div>
+  <div class="topRight"><span class="date" id="todayDate"></span><button type="button" class="btn secondary" id="exportTop">Exporter</button></div>
+</header>
+
+<nav class="nav">
+  <button type="button" data-view="dashboard" class="active">Dashboard</button>
+  <button type="button" data-view="training">Training</button>
+  <button type="button" data-view="nutrition">Nutrition</button>
+  <button type="button" data-view="objectives">Objectifs</button>
+  <button type="button" data-view="performance">Performance</button>
+  <button type="button" data-view="history">Historique</button>
+</nav>
+
+<section class="view active" id="dashboard">
+  <div class="hero">
+    <div class="small">Objectif principal</div>
+    <div class="heroTitle">Reconstruire. Progresser. Ironman.</div>
+    <div class="small" id="dashWeightLine" style="margin-top:8px"></div>
+    <div class="progress" style="margin-top:10px"><div class="bar" id="dashWeightBar"></div></div>
+  </div>
+  <div class="metricGrid">
+    <div class="metric"><div class="value" id="dWeight">69,0 kg</div><div class="label">Poids</div></div>
+    <div class="metric"><div class="value" id="dCalories">0</div><div class="label">kcal aujourd'hui</div></div>
+    <div class="metric"><div class="value" id="dProtein">0 g</div><div class="label">protéines</div></div>
+    <div class="metric"><div class="value" id="dMeals">0 / 4</div><div class="label">repas</div></div>
+  </div>
+
+  <div class="sectionTitle"><h2>Check-in du jour</h2><div class="sub">Un seul enregistrement par jour.</div></div>
+  <div class="card">
+    <div class="form4">
+      <div><label class="label">Poids ce matin (kg)</label><input id="checkWeight" type="number" step="0.1"></div>
+      <div><label class="label">Sommeil (h)</label><input id="checkSleep" type="number" step="0.5"></div>
+      <div><label class="label">Épaule /10</label><input id="checkShoulder" type="number" min="0" max="10"></div>
+      <div><label class="label">Cheville /10</label><input id="checkAnkle" type="number" min="0" max="10"></div>
+    </div>
+    <div class="form2" style="margin-top:10px">
+      <div><label class="label">Dos /10</label><input id="checkBack" type="number" min="0" max="10"></div>
+      <div><label class="label">Notes</label><input id="checkNotes" placeholder="Énergie, récupération, confiance..."></div>
+    </div>
+    <div class="actions" style="margin-top:10px"><button type="button" class="btn" id="checkinBtn">Enregistrer le check-in</button><span class="small" id="checkinStatus"></span></div>
+  </div>
+
+  <div class="sectionTitle"><h2>Programme du jour</h2><div class="sub">Les trois blocs sont toujours visibles pour comprendre la journée.</div></div>
+  <div id="dashboardPlan"></div>
+
+  <div class="sectionTitle"><h2>Compléments</h2><div class="sub">Pris aujourd'hui</div></div>
+  <div class="card" id="dashboardSupplements"></div>
+</section>
+
+<section class="view" id="training">
+  <div class="sectionTitle"><div><h2>Training</h2><div class="sub">Une journée = musculation + rééducation + endurance, chacun dans son bloc.</div></div></div>
+  <div id="trainingDay"></div>
+</section>
+
+<section class="view" id="nutrition">
+  <div class="sectionTitle"><div><h2>Nutrition</h2><div class="sub">4 prises fixes + bibliothèque + compléments.</div></div><button type="button" class="btn" id="newMealBtn">Nouveau repas</button></div>
+  <div class="metricGrid">
+    <div class="metric"><div class="value" id="nCal">0</div><div class="label">kcal</div></div>
+    <div class="metric"><div class="value" id="nP">0 g</div><div class="label">protéines</div></div>
+    <div class="metric"><div class="value" id="nC">0 g</div><div class="label">glucides</div></div>
+    <div class="metric"><div class="value" id="nF">0 g</div><div class="label">lipides</div></div>
+  </div>
+  <div class="sectionTitle"><h2>Repas du jour</h2><div class="sub">Sélectionne le repas réellement consommé.</div></div>
+  <div class="card" id="mealSlots"></div>
+  <div class="sectionTitle"><div><h2>Compléments</h2><div class="sub">Nom + dose pour éviter une simple checklist.</div></div><button type="button" class="btn" id="newSuppBtn">Nouveau complément</button></div>
+  <div class="card" id="supplementBox"></div>
+  <div class="sectionTitle"><h2>Bibliothèque de repas</h2><div class="sub">Créés une fois, réutilisés tous les jours.</div></div>
+  <div class="card list" id="mealLibrary"></div>
+</section>
+
+<section class="view" id="objectives">
+  <div class="sectionTitle"><div><h2>Objectifs</h2><div class="sub">Où tu vas. Les jalons se débloquent progressivement.</div></div></div>
+  <div class="hero"><div class="heroTitle">69 → 80 kg</div><div class="small" style="margin-top:6px">Reconstruction → force → endurance → triathlon → Ironman.</div></div>
+  <div class="sectionTitle"><h2>Roadmap</h2><div class="sub">Un objectif = une étape ; les dépendances sont explicites.</div></div>
+  <div class="card" id="roadmap"></div>
+</section>
+
+<section class="view" id="performance">
+  <div class="sectionTitle"><div><h2>Performance</h2><div class="sub">Ta capacité actuelle, sa progression et l'historique derrière.</div></div></div>
+  <div class="performanceTopGrid">
+    <div class="metric performanceMetric"><div class="label">Poids</div><div id="perfWeight"></div></div>
+    <div class="metric performanceMetric"><div class="label">Course</div><div id="perfRun"></div></div>
+    <div class="metric performanceMetric"><div class="label">Natation</div><div id="perfSwim"></div></div>
+  </div>
+
+  <div class="sectionTitle"><h2>Musculation</h2><div class="sub">Progression visible ; historique repliable.</div></div>
+  <div class="card performanceCard" id="perfStrength"></div>
+
+  <div class="sectionTitle"><h2>Rééducation</h2><div class="sub">Référence initiale ≠ performance actuelle.</div></div>
+  <div class="g3" id="rehabPerformance"></div>
+
+  <div class="sectionTitle"><h2>Revue hebdomadaire</h2><div class="sub">Pas de conclusion avant d'avoir assez de données.</div></div>
+  <div class="card" id="weeklyReview"></div>
+</section>
+
+<section class="view" id="history">
+  <div class="sectionTitle">
+    <div><h2>Historique</h2><div class="sub">Données enregistrées, regroupées par date.</div></div>
+    <div class="actions"><button type="button" class="btn secondary" id="exportHistory">Exporter</button><button type="button" class="btn secondary" id="importHistory">Importer</button><button type="button" class="btn danger" id="resetAll">Réinitialiser</button></div>
+  </div>
+  <input id="importFile" type="file" accept=".json,application/json" style="display:none">
+  <div class="card list" id="historyList"></div>
+</section>
+
+<div class="modalBackdrop" id="mealModal">
+  <div class="modal">
+    <div class="sectionTitle" style="margin-top:0"><div><h2>Nouveau repas</h2><div class="sub">Ajoute-le une fois à ta bibliothèque.</div></div><button type="button" class="close" id="closeMeal">×</button></div>
+    <div class="form2">
+      <div><label class="label">Nom</label><input id="mName"></div>
+      <div><label class="label">Moment</label><select id="mSlot"><option>Petit-déjeuner</option><option>Déjeuner</option><option>Déjeuner ++</option><option>Dessert / fin de journée</option></select></div>
+    </div>
+    <div class="form4" style="margin-top:10px">
+      <div><label class="label">kcal</label><input id="mKcal" type="number"></div>
+      <div><label class="label">Protéines</label><input id="mP" type="number" step="0.1"></div>
+      <div><label class="label">Glucides</label><input id="mC" type="number" step="0.1"></div>
+      <div><label class="label">Lipides</label><input id="mF" type="number" step="0.1"></div>
+    </div>
+    <div style="margin-top:10px"><label class="label">Note / portion</label><input id="mNote"></div>
+    <div style="margin-top:12px"><button type="button" class="btn" id="createMealBtn">Créer le repas</button></div>
+  </div>
+</div>
+
+<div class="modalBackdrop" id="suppModal">
+  <div class="modal">
+    <div class="sectionTitle" style="margin-top:0"><div><h2>Nouveau complément</h2><div class="sub">Dose affichée dans le dashboard et Nutrition.</div></div><button type="button" class="close" id="closeSupp">×</button></div>
+    <div class="form2">
+      <div><label class="label">Nom</label><input id="suppName" placeholder="Créatine"></div>
+      <div><label class="label">Dose (ex. 5)</label><input id="suppDose" inputmode="decimal" placeholder="5" aria-label="Dose du complément"></div>
+    </div>
+    <div class="form2" style="margin-top:10px">
+      <div><label class="label">Unité (ex. g)</label><input id="suppUnit" placeholder="g" aria-label="Unité de la dose"></div>
+      <div class="suppPreview" id="suppPreview">Ex. 5 g</div>
+    </div>
+    <div style="margin-top:12px"><button type="button" class="btn" id="createSuppBtn">Ajouter</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<footer class="footer">Road to Ironman · données locales · export/import JSON · V42</footer>
+</div>
+
+<script>
+const KEY="roadToTriathlonV3";
+
+const PROGRAMS={
+ "Upper A":[["Rowing poitrine supportée","3×8–12"],["Tirage vertical prise neutre","3×10–12"],["Chest press / développé couché","3×8–12"],["Élévation latérale amplitude confortable","2×12–15"],["Curl biceps","2×10–15"],["Triceps poulie","2×10–15"]],
+ "Lower A":[["Presse","3×8–12"],["Leg extension","2×10–15"],["Leg curl","3×10–15"],["Hip thrust","3×8–12"],["Calf raise","2×15"]],
+ "Upper B":[["Développé incliné léger/modéré","3×8–12"],["Pec deck / câbles si confortable","2×12–15"],["Rowing poulie","3×10–12"],["Tirage vertical","2×10–12"],["Élévation latérale amplitude confortable","2×12–15"],["Curl","2×10–15"],["Triceps","2×10–15"]],
+ "Lower B":[["Presse","3×10"],["Leg extension","3×12"],["Leg curl","3×10–15"],["Hip thrust","3×10"],["Split squat statique si confortable","2×8/côté"],["Calf raise","2×15"]]
+};
+
+const REHAB_PROGRAM={
+ "Upper A":[
+  {name:"Rotation externe",target:"3×12",unit:"répétitions",mode:"reps",load:"optional",zone:"Épaule"},
+  {name:"Serratus punch",target:"3×12",unit:"répétitions",mode:"reps",load:"optional",zone:"Épaule"},
+  {name:"Face pull léger",target:"2×15",unit:"répétitions",mode:"reps",load:"optional",zone:"Épaule"},
+  {name:"Bird-dog",target:"2×6/côté",unit:"répétitions/côté",mode:"perSide",load:"required",zone:"Dos"},
+  {name:"Side plank",target:"2×20–30 s",unit:"secondes",mode:"time",load:"required",zone:"Dos"},
+  {name:"Éversion élastique",target:"2×15",unit:"répétitions",mode:"reps",load:"required",zone:"Cheville"},
+  {name:"Équilibre",target:"2×45–60 s",unit:"secondes",mode:"time",load:"required",zone:"Cheville"}
+ ],
+ "Lower A":[
+  {name:"McGill curl-up",target:"2×6–8",unit:"répétitions",mode:"reps",load:"required",zone:"Dos"},
+  {name:"Glute bridge",target:"2×12",unit:"répétitions",mode:"reps",load:"optional",zone:"Dos"},
+  {name:"Hip hinge au poids du corps",target:"2×10",unit:"répétitions",mode:"reps",load:"required",zone:"Dos"},
+  {name:"Calf raise",target:"2×15",unit:"répétitions",mode:"reps",load:"optional",zone:"Cheville"}
+ ],
+ "Upper B":[
+  {name:"Rotation externe",target:"3×12",unit:"répétitions",mode:"reps",load:"optional",zone:"Épaule"},
+  {name:"Serratus",target:"3×12–15",unit:"répétitions",mode:"reps",load:"optional",zone:"Épaule"},
+  {name:"Y",target:"2×10",unit:"répétitions",mode:"reps",load:"optional",zone:"Épaule"},
+  {name:"Face pull",target:"2×15",unit:"répétitions",mode:"reps",load:"optional",zone:"Épaule"},
+  {name:"Bird-dog",target:"2×6/côté",unit:"répétitions/côté",mode:"perSide",load:"required",zone:"Dos"},
+  {name:"Side plank",target:"2×20–30 s",unit:"secondes",mode:"time",load:"required",zone:"Dos"},
+  {name:"Éversion",target:"2×15",unit:"répétitions",mode:"reps",load:"required",zone:"Cheville"},
+  {name:"Équilibre dynamique",target:"2×30–45 s",unit:"secondes",mode:"time",load:"required",zone:"Cheville"}
+ ],
+ "Lower B":[
+  {name:"Glute bridge",target:"2×15",unit:"répétitions",zone:"Dos"},
+  {name:"Hip hinge au poids du corps",target:"2×10",unit:"répétitions",mode:"reps",load:"required",zone:"Dos"},
+  {name:"Calf raise",target:"2×15",unit:"répétitions",mode:"reps",load:"optional",zone:"Cheville"},
+  {name:"Équilibre",target:"2×45 s",unit:"secondes",zone:"Cheville"}
+ ]
+};
+
+const SCHEDULE={
+ 1:[{type:"Musculation",name:"Upper A",time:"Matin"}],
+ 2:[{type:"Musculation",name:"Lower A",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
+ 3:[{type:"Récupération",name:"Marche / mobilité légère",time:"Journée"}],
+ 4:[{type:"Musculation",name:"Upper B",time:"Matin"}],
+ 5:[{type:"Musculation",name:"Lower B",time:"Matin"}],
+ 6:[{type:"Musculation",name:"Upper B",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
+ 0:[{type:"Repos",name:"Repos",time:"Journée"}]
+};
+
+const BASELINE={
+ "Dos":[["Bird-dog","6/côté · 0/10"],["Side plank","20 s · 0/10"],["Hip hinge","10 reps · 0/10"]],
+ "Épaule":[["Élévation avant","0/10 dans l'amplitude testée"],["Élévation latérale","2/10"],["Rotation externe","10 reps · 0/10"],["Rowing","10 reps · 1/10"]],
+ "Cheville":[["Équilibre","1:15 · 0/10"],["Calf raise","20 reps · 0/10"],["Mini-squat","10 reps · 0/10"],["Step-up","10 reps · 0/10"]]
+};
+
+const PHASES={
+ "Dos":[{name:"Phase 1 · stabilité",criteria:[["Bird-dog",6],["Side plank",20],["Hip hinge",10]]},{name:"Phase 2 · endurance",criteria:[["Side plank",45],["Hip hinge",15],["Glute bridge",15]]},{name:"Phase 3 · charge",criteria:[["RDL",1],["Carry",20]]}],
+ "Épaule":[{name:"Phase 1 · coiffe et contrôle",criteria:[["Rotation externe",12],["Serratus",12],["Rowing",10]]},{name:"Phase 2 · renforcement",criteria:[["Face pull",15],["Élévation latérale",12],["Rotation externe",15]]},{name:"Phase 3 · au-dessus de la tête",criteria:[["Élévation au-dessus de la tête",8],["Développé",8]]}],
+ "Cheville":[{name:"Phase 1 · force et contrôle",criteria:[["Calf raise",15],["Équilibre",45],["Step-up",10]]},{name:"Phase 2 · dynamique",criteria:[["Équilibre dynamique",45],["Calf raise",25],["Petits impacts",10]]},{name:"Phase 3 · course",criteria:[["Marche rapide",20],["Course",5]]}]
+};
+
+const LEGACY_ALIASES={
+ "upper_a_chest_press_d_velopp_couch":"Chest press / développé couché",
+ "upper_a_chest_press_d_velopp_couch_":"Chest press / développé couché",
+ "upper_a_curl_biceps":"Curl biceps",
+ "upper_b_developpe_incline_leger_modere":"Développé incliné léger/modéré",
+ "upper_b_developpe_incline_leger_modere_":"Développé incliné léger/modéré"
+};
+
+function baseState(){
+ return {
+  goals:{startWeight:69,midWeight:74,targetWeight:80,calTarget:3200,proteinTarget:140},
+  daily:{},meals:[],mealLogs:{},
+  supplements:{items:[
+   {id:"creatine",name:"Créatine",dose:"5",unit:"g"},
+   {id:"whey",name:"Whey",dose:"",unit:""},
+   {id:"omega3",name:"Oméga-3",dose:"",unit:""},
+   {id:"collagen",name:"Collagène",dose:"",unit:""}
+  ],logs:{}},
+  workoutLogs:[],rehabLogs:[],endurance:[],phases:{Dos:0,Épaule:0,Cheville:0}
+ };
+}
+
+function get(){
+ let s=null;try{s=JSON.parse(localStorage.getItem(KEY)||"null")}catch{}
+ if(!s)s=baseState();
+ const b=baseState();
+ s.goals={...b.goals,...(s.goals||{}),targetWeight:80};
+ s.daily=s.daily||{};s.meals=s.meals||[];s.mealLogs=s.mealLogs||{};
+ if(!s.supplements)s.supplements=b.supplements;
+ s.supplements.items=s.supplements.items||[];
+ if(Array.isArray(s.supplements.names) && !s.supplements.items.length){
+  s.supplements.items=s.supplements.names.map((name,i)=>({id:"legacy_"+safeSlug(name)+"_"+i,name,dose:"",unit:""}));
+ }s.supplements.logs=s.supplements.logs||{};
+ s.workoutLogs=s.workoutLogs||[];s.rehabLogs=s.rehabLogs||[];s.endurance=s.endurance||[];
+ s.phases={...b.phases,...(s.phases||{})};
+ return s;
+}
+function save(s){localStorage.setItem(KEY,JSON.stringify(s))}
+function today(){return new Date().toISOString().slice(0,10)}
+function fmtDate(d){return new Date(d+"T12:00:00").toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"})}
+function weekStart(){const d=new Date();const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day));return d.toISOString().slice(0,10)}
+function uid(){return "id_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,10)}
+function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.style.display="block";clearTimeout(window.__t);window.__t=setTimeout(()=>el.style.display="none",1800)}
+function safeSlug(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")}
+function parseTargetSets(target){const m=String(target||"").trim().match(/^(\d+)\s*[×x]/i);return m?+m[1]:1}
+function parseNumeric(v){const nums=(String(v||"").replace(",",".").match(/-?\d+(?:\.\d+)?/g)||[]).map(Number);return nums.length?Math.max(...nums):0}
+function prettyExercise(log){
+ const raw=safeSlug(log.exerciseKey||log.exercise||log.displayName);
+ if(LEGACY_ALIASES[raw])return LEGACY_ALIASES[raw];
+ const names=[...Object.values(PROGRAMS).flat().map(x=>x[0]),...Object.values(REHAB_PROGRAM).flat().map(x=>x.name)];
+ return names.find(n=>safeSlug(n)===raw)||names.find(n=>raw.includes(safeSlug(n)))||log.displayName||log.exercise||"Exercice";
+}
+function formatResistance(v){const s=String(v??"").trim();return s===""?"non renseigné":s}
+function dayPlan(){return SCHEDULE[new Date().getDay()]||[]}
+function activeEndurance(){return dayPlan().find(x=>["Natation","Course","Marche"].includes(x.type))}
+
+
+function migrate(){
+ const s=get(),names=[...Object.values(PROGRAMS).flat().map(x=>x[0])];
+ const norm=s.workoutLogs.map(x=>{
+  const raw=safeSlug(x.exerciseKey||x.exercise||x.displayName);
+  const display=LEGACY_ALIASES[raw]||names.find(n=>safeSlug(n)===raw)||x.displayName||x.exercise||"Exercice";
+  return {...x,displayName:display,exerciseKey:safeSlug(display),weight:+x.weight||0,reps:+x.reps||0,rir:+x.rir||0,painDuring:x.painDuring==null?0:+x.painDuring};
+ }).sort((a,b)=>a.date.localeCompare(b.date)||String(a.session).localeCompare(String(b.session))||String(a.exerciseKey).localeCompare(String(b.exerciseKey))||(a.set||0)-(b.set||0));
+ const counters={};
+ norm.forEach(x=>{const k=[x.date,x.session,x.exerciseKey].join("|");counters[k]=(counters[k]||0)+1;x.set=counters[k]});
+ s.workoutLogs=norm;
+
+ const rc={};
+ s.rehabLogs=(s.rehabLogs||[]).map(x=>({...x,exercise:x.exercise||"Rééducation",actual:x.actual||"",resistance:x.resistance||"",pain:+x.pain||0})).sort((a,b)=>a.date.localeCompare(b.date)||String(a.session).localeCompare(String(b.session))||String(a.exercise).localeCompare(String(b.exercise))||(a.set||0)-(b.set||0));
+ s.rehabLogs.forEach(x=>{const k=[x.date,x.session,x.exercise].join("|");rc[k]=(rc[k]||0)+1;x.set=rc[k]});
+
+ // Migrate legacy supplement names/logs to stable IDs.
+ if(s.supplements && Array.isArray(s.supplements.names)){
+   const oldNames=s.supplements.names.slice();
+   const oldLogs=s.supplements.logs||{};
+   const items=oldNames.map((name,i)=>({id:"legacy_"+safeSlug(name)+"_"+i,name,dose:"",unit:""}));
+   const newLogs={};
+   Object.entries(oldLogs).forEach(([date,log])=>{
+     newLogs[date]={};
+     oldNames.forEach((name,i)=>{ if(log?.[name]) newLogs[date][items[i].id]=true; });
+   });
+   s.supplements.items=items;
+   s.supplements.logs=newLogs;
+   delete s.supplements.names;
+ }
+ save(s);
+}
+function showView(id){document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===id));document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));renderAll()}
+
+function renderDashboard(){
+ const s=get(),d=s.daily[today()]||{},w=+(d.weight||69),logs=s.mealLogs[today()]||{};
+ document.getElementById("dWeight").textContent=w.toFixed(1)+" kg";
+ document.getElementById("dCalories").textContent=Math.round(d.calories||0);
+ document.getElementById("dProtein").textContent=Math.round(d.protein||0)+" g";
+ document.getElementById("dMeals").textContent=Object.keys(logs).length+" / 4";
+ document.getElementById("dashWeightLine").textContent=`${w.toFixed(1)} kg · palier 74 kg · cible 80 kg`;
+ document.getElementById("dashWeightBar").style.width=Math.max(0,Math.min(100,(w-69)/11*100))+"%";
+ const muscu=dayPlan().find(x=>x.type==="Musculation"),end=activeEndurance();
+ document.getElementById("dashboardPlan").innerHTML=
+ `<div class="sessionBand"><div class="bandHeader"><div><div class="bandType">MUSCULATION</div><div class="bandTitle">${muscu?.name||"Aucune séance"}</div></div><span class="tag">${muscu?"Programmé":"Repos"}</span></div><div class="small">${muscu?"Séance prescrite aujourd'hui.":"Aucune séance de charge aujourd'hui."}</div></div>
+  <div class="sessionBand"><div class="bandHeader"><div><div class="bandType">RÉÉDUCATION</div><div class="bandTitle">${muscu?muscu.name:"Aucune séance associée"}</div></div><span class="tag">${muscu?"Prescrit":"—"}</span></div><div class="small">${muscu?"Bloc de rééducation lié à la séance.":"Aucun bloc associé aujourd'hui."}</div></div>
+  <div class="sessionBand"><div class="bandHeader"><div><div class="bandType">ENDURANCE</div><div class="bandTitle">${end?.name||"Aucune activité"}</div></div><span class="tag">${end?end.time:"—"}</span></div><div class="small">${end?"Bloc d'endurance indépendant de la musculation.":"Aucune activité d'endurance programmée."}</div></div>`;
+ const sup=s.supplements.items,logsS=s.supplements.logs[today()]||{};
+ document.getElementById("dashboardSupplements").innerHTML=sup.length?sup.map(item=>`<div class="row"><label class="left"><input type="checkbox" data-dsup="${item.id}" ${logsS[item.id]?"checked":""}><span>${item.name}${item.dose?` <span class="tag">${item.dose}${item.unit?` ${item.unit}`:""}</span>`:` <span class="tag">Dose non renseignée</span>`}</span></label></div>`).join(""):'<div class="empty">Aucun complément.</div>';
+ document.querySelectorAll("[data-dsup]").forEach(el=>el.onchange=()=>toggleSupplement(el.dataset.dsup,el.checked));
+ document.getElementById("checkWeight").value=w;
+ document.getElementById("checkSleep").value=d.sleep||"";
+ document.getElementById("checkShoulder").value=d.shoulder??0;
+ document.getElementById("checkAnkle").value=d.ankle??0;
+ document.getElementById("checkBack").value=d.back??0;
+ document.getElementById("checkNotes").value=d.notes||"";
+ const btn=document.getElementById("checkinBtn");btn.disabled=!!d.saved;document.getElementById("checkinStatus").textContent=d.saved?"Check-in du jour enregistré":"";
+ ["checkWeight","checkSleep","checkShoulder","checkAnkle","checkBack","checkNotes"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!!d.saved});
+}
+
+function renderTraining(){
+ const s=get(),muscu=dayPlan().find(x=>x.type==="Musculation"),end=activeEndurance(),todayW=s.workoutLogs.filter(x=>x.date===today()),todayR=s.rehabLogs.filter(x=>x.date===today());
+ document.getElementById("trainingDay").innerHTML=
+ `<div class="sessionBand"><div class="bandHeader"><div><div class="bandType">MUSCULATION</div><div class="bandTitle">${muscu?.name||"Aucune séance"}</div></div></div>${muscu?renderMuscu(muscu.name,todayW):'<div class="empty">Pas de musculation aujourd’hui.</div>'}</div>
+  <div class="sessionBand"><div class="bandHeader"><div><div class="bandType">RÉÉDUCATION</div><div class="bandTitle">${muscu?.name||"Aucune séance associée"}</div></div></div>${muscu?renderRehab(muscu.name,todayR):'<div class="empty">Pas de bloc de rééducation associé.</div>'}</div>
+  <div class="sessionBand"><div class="bandHeader"><div><div class="bandType">ENDURANCE</div><div class="bandTitle">${end?.name||"Aucune activité"}</div></div></div>${end?renderEndurance(end):'<div class="empty">Pas de séance d’endurance prévue.</div>'}</div>`;
+ bindTraining();
+}
+function renderMuscu(session,logs){
+ const ex=PROGRAMS[session]||[],total=ex.reduce((a,[,t])=>a+parseTargetSets(t),0),done=ex.reduce((a,[n])=>a+logs.filter(x=>x.session===session&&x.exerciseKey===safeSlug(n)).length,0);
+ return `<div class="small" style="margin-bottom:9px">Séance : ${done}/${total} séries</div>`+ex.map(([n,t])=>renderStrength(session,n,t,logs)).join("");
+}
+function renderStrength(session,name,target,logs){
+ const key=safeSlug(name),arr=logs.filter(x=>x.session===session&&x.exerciseKey===key),need=parseTargetSets(target),complete=arr.length>=need;
+ const recommendation=getExerciseRecommendation(key,session,target);
+ const recommendedValue=recommendation?recommendation.weight:"";
+ const trend=recommendation?`<span class="loadTrend ${recommendation.direction}" title="${recommendation.label}">${recommendation.symbol}</span>`:"";
+ const dynamicTarget=recommendation?formatTrainingTarget(target,recommendation):target;
+ return `<div class="exercise"><div class="exerciseHead"><div><div class="exerciseName">${name}</div><div class="exerciseMeta">${dynamicTarget}${trend}</div></div><span class="countBadge ${complete?"complete":""}">${arr.length}/${need}</span></div>
+ <div class="activeRow"><input id="w_${key}" type="number" step="0.5" value="${recommendedValue}" placeholder="kg"><input id="r_${key}" type="number" placeholder="reps (8–12)"><input id="q_${key}" type="number" min="0" max="8" placeholder="RIR"><input id="p_${key}" type="number" min="0" max="10" placeholder="douleur /10"><button type="button" class="btn secondary" data-add-set="${encodeURIComponent(session)}|${encodeURIComponent(name)}">Enregistrer S${arr.length+1}</button></div>
+ ${arr.length?`<div class="historyLine">${arr.map(x=>`<b>S${x.set}</b> · ${x.weight} kg × ${x.reps} · RIR ${x.rir} · douleur ${x.painDuring}/10`).join(" &nbsp;·&nbsp; ")}</div>`:""}</div>`;
+}
+function formatTrainingTarget(target,recommendation){
+ const sets=(String(target).match(/^\s*(\d+)/)||[])[1]||"";
+ const nums=(String(target).match(/\d+(?:[.,]\d+)?/g)||[]).map(v=>+v.replace(",","."));
+ const max=nums.length>=2?nums[nums.length-1]:nums[0]||"";
+ return sets&&recommendation?.weight?`${sets}×${recommendation.weight}×${max}`:target;
+}
+function ProgressionEngine(){
+  const n=v=>{const x=Number.parseFloat(String(v??"").replace(",","."));return Number.isFinite(x)?x:0};
+  const roundStep=(v,step)=>step>0?Math.round(v/step)*step:v;
+  const ceilStep=(v,step)=>step>0?Math.ceil(v/step)*step:v;
+  const painMax=rows=>rows.reduce((m,x)=>Math.max(m,n(x.painDuring??x.pain)),0);
+  const complete=(rows,sets)=>rows.length>=sets;
+
+  function muscu(prescription,rows){
+    if(!rows.length)return null;
+    const sets=prescription.sets||parseTargetSets(prescription.target);
+    if(!complete(rows,sets))return null;
+    const reps=rows.map(x=>n(x.reps)), weights=rows.map(x=>n(x.weight)).filter(x=>x>=0);
+    const rirs=rows.map(x=>n(x.rir));
+    const maxWeight=weights.length?Math.max(...weights):0;
+    const avgRir=rirs.length?rirs.reduce((a,b)=>a+b,0)/rirs.length:0;
+    const range=targetRange(prescription.target||`${sets}×8–12`);
+    const pain=painMax(rows);
+    if(pain>=3){const next=Math.max(0,roundStep(maxWeight*.9,.5));return {direction:'down',symbol:'↓',weight:next,label:`Séance complète : douleur ${pain}/10 → diminuer à ${next} kg`};}
+    const allTop=range.max>0 && reps.every(v=>v>=range.max);
+    if(allTop && avgRir>=2){const next=Math.max(.5,roundStep(maxWeight*1.025,.5));return {direction:'up',symbol:'↑',weight:next,label:`Séance complète : toutes les séries au haut de la fourchette + RIR moyen ${avgRir.toFixed(1)} → ${next} kg`};}
+    return {direction:'keep',symbol:'—',weight:maxWeight,label:`Séance complète : maintenir ${maxWeight} kg`};
+  }
+
+  function rehab(pres,r,rows){
+    if(!rows.length)return null;
+    const cfg=rehabMeasureConfig(r), sets=rehabTargetSets(r.target);
+    if(!complete(rows,sets))return null;
+    const pain=painMax(rows);
+    const vals=rows.map(x=>parseActualValue(x.actual)).filter(x=>x>=0);
+    const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+    const maxVal=vals.length?Math.max(...vals):0;
+    const loads=rows.map(x=>{const raw=String(x.resistance??'').trim().replace(',','.');return raw===''?null:Number.isFinite(Number(raw))?Number(raw):null}).filter(x=>x!==null);
+    const maxLoad=loads.length?Math.max(...loads):0;
+    const hasLoad=cfg.load!=='none';
+    const range=rehabRange(r.target,cfg.mode);
+    if(pain>=3){
+      if(hasLoad){const next=loadStep(maxLoad*.9);return {direction:'down',symbol:'↓',mode:'load',value:next,label:`Douleur ${pain}/10 → diminuer à ${next}`};}
+      if(cfg.mode==='time'){const next=Math.max(5,Math.floor((avg*.9)/5)*5);return {direction:'down',symbol:'↓',mode:'target',min:next,max:next,label:`Douleur ${pain}/10 → réduire à ${next} s`};}
+      const next=Math.max(1,Math.floor(avg*.9));return {direction:'down',symbol:'↓',mode:'target',min:next,max:next,label:`Douleur ${pain}/10 → réduire les répétitions`};
+    }
+    // Progression from actual session performance, not target alone.
+    if(hasLoad && loads.length){
+      const allTarget=range.max>0 && vals.every(v=>v>=range.max);
+      if(allTarget){const next=loadStep(maxLoad*1.10);return {direction:'up',symbol:'↑',mode:'load',value:next,label:`Toutes les séries au haut de la cible → résistance ${next}`};}
+      return {direction:'keep',symbol:'—',mode:'load',value:maxLoad,label:`Maintenir la résistance ${maxLoad}`};
+    }
+    if(cfg.mode==='time'){
+      const next=Math.max(5,ceilStep(avg*1.10,5));
+      return {direction:next>range.max?'up':'keep',symbol:next>range.max?'↑':'—',mode:'target',min:next,max:next,label:next>range.max?`Durée réelle ${avg.toFixed(0)} s → ${next} s`:`Maintenir ${next} s`};
+    }
+    const next=Math.max(1,ceilStep(avg*1.10,1));
+    const direction=next>range.max?'up':'keep';
+    return {direction,symbol:direction==='up'?'↑':'—',mode:'target',min:next,max:next,label:direction==='up'?`Performance moyenne ${avg.toFixed(1)} → ${next}`:`Maintenir ${next}`};
+  }
+
+  function loadStep(v){
+    if(v<=0)return 0;
+    if(v<2.5)return Math.round(v*2)/2;
+    return Math.max(.5,Math.round(v/.5)*.5);
+  }
+  return {muscu,rehab};
+}
+const PROGRESSION_ENGINE=ProgressionEngine();
+
+function groupExerciseSessions(exerciseKey,session){
+ const all=get().workoutLogs.filter(x=>x.exerciseKey===exerciseKey && x.session===session);
+ const groups={};
+ all.forEach(x=>{const k=x.date;(groups[k]??=[]).push(x)});
+ return Object.entries(groups).sort(([a],[b])=>a.localeCompare(b)).map(([date,rows])=>({date,rows:rows.slice().sort((a,b)=>(a.set||0)-(b.set||0))}));
+}
+function getExerciseRecommendation(exerciseKey,session,target){
+ const required=parseTargetSets(target);
+ const sessions=groupExerciseSessions(exerciseKey,session);
+ const todayKey=today();
+ const completed=sessions.filter(s=>s.rows.length>=required);
+ const todaySession=completed.find(s=>s.date===todayKey);
+ const previous=completed.filter(s=>s.date<todayKey).at(-1);
+ const chosen=todaySession||previous;
+ if(!chosen)return null;
+ return PROGRESSION_ENGINE.muscu({sets:required,target},chosen.rows);
+}
+function nextLoad(last,target){ return PROGRESSION_ENGINE.muscu({target},[last]); }
+function rehabMeasureConfig(r){
+ const mode=r.mode||((/secondes|\bs\b/i.test(r.target))?"time":"reps");
+ const load="required";
+ return {mode,load,perSide:mode==="perSide"};
+}
+function rehabRange(target,mode){
+ const str=String(target||"");
+ const body=str.replace(/^\s*\d+\s*[×x*]\s*/i,"");
+ const nums=(body.match(/\d+(?:[.,]\d+)?/g)||[]).map(v=>+v.replace(",","."));
+ if(!nums.length)return {min:0,max:0};
+ if(nums.length===1)return {min:nums[0],max:nums[0]};
+ return {min:nums[0],max:nums[1]};
+}
+function rehabTargetSets(target){
+ return +(String(target||"").match(/^\s*(\d+)/)||[])[1]||1;
+}
+function parseActualValue(v){
+ const m=String(v||"").replace(",",".").match(/\d+(?:\.\d+)?/);
+ return m?+m[0]:0;
+}
+function getRehabRecommendation(r,logs){
+ const required=rehabTargetSets(r.target);
+ const sessions={};
+ (logs||[]).filter(x=>x.exercise===r.name).forEach(x=>{(sessions[x.date]??=[]).push(x)});
+ const completed=Object.entries(sessions).filter(([d,rows])=>rows.length>=required).sort(([a],[b])=>a.localeCompare(b));
+ const todayKey=today();
+ const todaySession=completed.find(([d])=>d===todayKey);
+ const previous=completed.filter(([d])=>d<todayKey).at(-1);
+ const chosen=todaySession?todaySession[1]:previous?.[1];
+ if(!chosen)return null;
+ return PROGRESSION_ENGINE.rehab({},r,chosen);
+}
+function formatRehabActual(r, actual){
+ const cfg=rehabMeasureConfig(r), value=parseActualValue(actual);
+ if(cfg.mode==='time') return `${value} s`;
+ if(cfg.mode==='perSide') return `${value}/côté`;
+ return `${value} reps`;
+}
+function formatRehabTarget(r, rec){
+ const sets=rehabTargetSets(r.target), range=rehabRange(r.target, rehabMeasureConfig(r).mode);
+ if(!rec) return r.target;
+ if(rec.mode==='load'){
+   const load=rec.value;
+   const unit=rehabMeasureConfig(r).mode==='time'?'s':rehabMeasureConfig(r).mode==='perSide'?'/côté':' reps';
+   const base=range.min===range.max?`${sets}×${range.min}${unit}`:`${sets}×${range.min}–${range.max}${unit}`;
+   return `${base} · résistance ${load}`;
+ }
+ const min=rec.min??range.min, max=rec.max??range.max;
+ const unit=rehabMeasureConfig(r).mode==='time'?' s':rehabMeasureConfig(r).mode==='perSide'?'/côté':'';
+ return min===max?`${sets}×${min}${unit}`:`${sets}×${min}–${max}${unit}`;
+}
+function renderRehab(session,logs){
+ const list=REHAB_PROGRAM[session]||[];
+ if(!list.length)return '<div class="empty">Aucune rééducation prescrite.</div>';
+ const total=list.reduce((a,x)=>a+parseTargetSets(x.target),0),done=list.reduce((a,x)=>a+logs.filter(l=>l.exercise===x.name).length,0);
+ return `<div class="small" style="margin-bottom:9px">Rééducation : ${done}/${total} réalisations</div>`+list.map(r=>{
+   const arr=logs.filter(l=>l.exercise===r.name),need=parseTargetSets(r.target),complete=arr.length>=need,cfg=rehabMeasureConfig(r),rec=getRehabRecommendation(r,logs),dynamicTarget=formatRehabTarget(r,rec);
+   const trend=rec?`<span class="loadTrend ${rec.direction}" title="${rec.label}">${rec.symbol}</span>`:"";
+   const actualPlaceholder=cfg.mode==="time"?"Durée (s)":cfg.mode==="perSide"?"Réalisation / côté":"Réalisation";
+   const recLoad=rec&&rec.mode==="load"?rec.value:0;
+   const loadField=`<input id="rrs_${safeSlug(r.name)}" type="number" min="0" step="0.5" value="${recLoad}" placeholder="Charge / résistance (0 = poids du corps)">`;
+   return `<div class="exercise"><div class="exerciseHead"><div><div class="exerciseName">${r.name}</div><div class="exerciseMeta">${dynamicTarget} ${trend}<span class="rehabUnit">· ${cfg.mode==="time"?"durée":cfg.mode==="perSide"?"par côté":"répétitions"}</span></div></div><span class="countBadge ${complete?"complete":""}">${arr.length}/${need}</span></div>
+    <div class="activeRow rehab"><input id="rr_${safeSlug(r.name)}" placeholder="${actualPlaceholder}">${loadField}<input id="rrp_${safeSlug(r.name)}" type="number" min="0" max="10" placeholder="douleur /10"><button type="button" class="btn secondary" data-add-rehab="${encodeURIComponent(session)}|${encodeURIComponent(r.name)}">Enregistrer R${arr.length+1}</button></div>
+    ${arr.length?`<div class="historyLine">${arr.map((x,i)=>`<b>R${x.set||i+1}</b> · ${formatRehabActual(r,x.actual)}${` · résistance : ${formatResistance(x.resistance)}`} · douleur ${x.pain}/10`).join(" &nbsp;·&nbsp; ")}</div>`:""}</div>`
+ }).join("");
+}
+function renderEndurance(item){
+ return `<div class="form4"><div><label class="label">Distance (km)</label><input id="endDist" type="number" step="0.01"></div><div><label class="label">Durée (min)</label><input id="endTime" type="number" step="0.1"></div><div><label class="label">RPE</label><input id="endRpe" type="number" min="1" max="10"></div><div><label class="label">Douleur /10</label><input id="endPain" type="number" min="0" max="10"></div></div>
+ <div style="margin-top:10px"><label class="label">Source</label><input id="endSource" placeholder="Strava / montre / manuel"></div>
+ <div style="margin-top:10px"><button type="button" class="btn" id="saveEndurance">Enregistrer</button></div>`;
+}
+function bindTraining(){
+ document.querySelectorAll("[data-add-set]").forEach(btn=>btn.onclick=()=>{
+  const [a,b]=btn.dataset.addSet.split("|"),session=decodeURIComponent(a),name=decodeURIComponent(b),k=safeSlug(name),w=+document.getElementById("w_"+k).value||0,r=+document.getElementById("r_"+k).value||0,q=+document.getElementById("q_"+k).value||0,p=+document.getElementById("p_"+k).value||0;
+  if(!w||!r){toast("Renseigne la charge et les reps");return}
+  const s=get(),arr=s.workoutLogs.filter(x=>x.date===today()&&x.session===session&&x.exerciseKey===k);
+  s.workoutLogs.push({id:uid(),date:today(),session,exerciseKey:k,displayName:name,set:arr.length+1,weight:w,reps:r,rir:q,painDuring:p});save(s);renderAll();toast("Série enregistrée");
+ });
+ document.querySelectorAll("[data-add-rehab]").forEach(btn=>btn.onclick=()=>{
+  const [a,b]=btn.dataset.addRehab.split("|"),session=decodeURIComponent(a),name=decodeURIComponent(b),k=safeSlug(name),actual=document.getElementById("rr_"+k).value.trim(),resEl=document.getElementById("rrs_"+k),resistance=resEl?String(resEl.value).trim():"0",pain=+document.getElementById("rrp_"+k).value||0;
+  if(!actual){toast("Renseigne la réalisation");return}
+  const s=get(),arr=s.rehabLogs.filter(x=>x.date===today()&&x.session===session&&x.exercise===name);
+  s.rehabLogs.push({id:uid(),date:today(),session,exercise:name,set:arr.length+1,actual,resistance,pain});save(s);renderAll();toast("Réalisation enregistrée");
+ });
+ const e=document.getElementById("saveEndurance");
+ if(e)e.onclick=()=>{
+  const item=activeEndurance(),s=get(),distance=+document.getElementById("endDist").value||0,time=+document.getElementById("endTime").value||0,rpe=+document.getElementById("endRpe").value||0,pain=+document.getElementById("endPain").value||0,source=document.getElementById("endSource").value||"";
+  if(distance<=0||time<=0){toast("Renseigne distance et durée");return}
+  s.endurance.push({id:uid(),date:today(),type:item.type,session:item.name,distance,time,rpe,pain,source});save(s);renderAll();toast("Activité enregistrée");
+ };
+}
+
+function recalcNutrition(s){
+ const logs=s.mealLogs[today()]||{},t={calories:0,protein:0,carbs:0,fat:0};
+ Object.values(logs).forEach(id=>{const m=s.meals.find(x=>x.id===id);if(m){t.calories+=m.kcal;t.protein+=m.p;t.carbs+=m.c;t.fat+=m.f}});
+ s.daily[today()]=s.daily[today()]||{};Object.assign(s.daily[today()],t);
+}
+function renderNutrition(){
+ const s=get(),d=s.daily[today()]||{},logs=s.mealLogs[today()]||{};
+ document.getElementById("nCal").textContent=Math.round(d.calories||0);
+ document.getElementById("nP").textContent=Math.round(d.protein||0)+" g";document.getElementById("nC").textContent=Math.round(d.carbs||0)+" g";document.getElementById("nF").textContent=Math.round(d.fat||0)+" g";
+ document.getElementById("mealSlots").innerHTML=["Petit-déjeuner","Déjeuner","Déjeuner ++","Dessert / fin de journée"].map(slot=>{const m=s.meals.find(x=>x.id===logs[slot]);return `<div class="row"><div><b>${slot}</b><br><span class="small">${m?m.name:"Pas sélectionné"}</span></div><div class="actions">${m?`<span class="tag">${m.kcal} kcal</span><button type="button" class="btn danger" data-clear-meal="${encodeURIComponent(slot)}">Retirer</button>`:""}</div></div>`}).join("");
+ document.querySelectorAll("[data-clear-meal]").forEach(b=>b.onclick=()=>clearMeal(decodeURIComponent(b.dataset.clearMeal)));
+ const sup=s.supplements.items;
+ document.getElementById("supplementBox").innerHTML=sup.length?sup.map(item=>`<div class="row"><label class="left"><input type="checkbox" data-supp-log="${item.id}" ${s.supplements.logs[today()]?.[item.id]?"checked":""}><span><b>${item.name}</b>${item.dose?` <span class="tag">Dose : ${item.dose}${item.unit?` ${item.unit}`:""}</span>`:` <span class="tag">Dose non renseignée</span>`}</span></label><button type="button" class="btn danger" data-del-supp="${item.id}">Supprimer</button></div>`).join(""):'<div class="empty">Aucun complément.</div>';
+ document.querySelectorAll("[data-supp-log]").forEach(el=>el.onchange=()=>toggleSupplement(el.dataset.suppLog,el.checked));
+ document.querySelectorAll("[data-del-supp]").forEach(el=>el.onclick=()=>deleteSupplement(el.dataset.delSupp));
+ document.getElementById("mealLibrary").innerHTML=s.meals.length?s.meals.map(m=>`<div class="row"><div><b>${m.name}</b><br><span class="small">${m.slot} · ${m.p} P · ${m.c} G · ${m.f} L</span></div><div class="actions"><span class="tag">${m.kcal} kcal</span><button type="button" class="btn secondary" data-select-meal="${m.id}">Sélectionner</button><button type="button" class="btn danger" data-delete-meal="${m.id}">Supprimer</button></div></div>`).join(""):'<div class="empty">Bibliothèque vide.</div>';
+ document.querySelectorAll("[data-select-meal]").forEach(b=>b.onclick=()=>selectMeal(b.dataset.selectMeal));document.querySelectorAll("[data-delete-meal]").forEach(b=>b.onclick=()=>deleteMeal(b.dataset.deleteMeal));
+}
+function selectMeal(id){const s=get(),m=s.meals.find(x=>x.id===id);if(!m)return;s.mealLogs[today()]=s.mealLogs[today()]||{};s.mealLogs[today()][m.slot]=id;recalcNutrition(s);save(s);renderAll();toast("Repas sélectionné")}
+function clearMeal(slot){const s=get();if(s.mealLogs[today()])delete s.mealLogs[today()][slot];recalcNutrition(s);save(s);renderAll()}
+function deleteMeal(id){const s=get(),m=s.meals.find(x=>x.id===id);if(!m)return;if(!confirm(`Supprimer « ${m.name} » ?`))return;Object.values(s.mealLogs).forEach(log=>Object.keys(log||{}).forEach(slot=>{if(log[slot]===id)delete log[slot]}));s.meals=s.meals.filter(x=>x.id!==id);recalcNutrition(s);save(s);renderAll();toast("Repas supprimé")}
+function createMeal(){const s=get(),name=document.getElementById("mName").value.trim();if(!name){toast("Nom requis");return}s.meals.push({id:uid(),slot:document.getElementById("mSlot").value,name,kcal:+document.getElementById("mKcal").value||0,p:+document.getElementById("mP").value||0,c:+document.getElementById("mC").value||0,f:+document.getElementById("mF").value||0,note:document.getElementById("mNote").value||""});save(s);closeModal("mealModal");renderAll();toast("Repas créé")}
+
+function toggleSupplement(id,val){const s=get();s.supplements.logs[today()]=s.supplements.logs[today()]||{};s.supplements.logs[today()][id]=val;save(s);renderAll()}
+function deleteSupplement(id){const s=get(),item=s.supplements.items.find(x=>x.id===id);if(!item)return;if(!confirm(`Supprimer « ${item.name} » ?`))return;s.supplements.items=s.supplements.items.filter(x=>x.id!==id);Object.values(s.supplements.logs).forEach(l=>{if(l)delete l[id]});save(s);renderAll();toast("Complément supprimé")}
+function createSupplement(){const s=get(),name=document.getElementById("suppName").value.trim(),dose=document.getElementById("suppDose").value.trim(),unit=document.getElementById("suppUnit").value.trim();if(!name){toast("Nom requis");return}if(s.supplements.items.some(x=>x.name.toLowerCase()===name.toLowerCase())){toast("Ce complément existe déjà");return}s.supplements.items.push({id:uid(),name,dose,unit});save(s);closeModal("suppModal");["suppName","suppDose","suppUnit"].forEach(id=>document.getElementById(id).value="");renderAll();toast("Complément ajouté")}
+function openModal(id){document.getElementById(id).style.display="flex"}function closeModal(id){document.getElementById(id).style.display="none"}
+
+
+function phaseEvidence(s,zone){
+ const idx=s.phases[zone]||0,rule=PHASES[zone]?.[idx];
+ if(!rule)return {phase:"",pct:0,eligible:false,consolidated:0,met:0,total:0};
+ const rehab=s.rehabLogs, strength=s.workoutLogs;
+ const metRows=rule.criteria.map(([name,target])=>{
+   const rehabValid=rehab.filter(x=>x.exercise.toLowerCase()===name.toLowerCase()&&x.pain<=2&&parseNumeric(x.actual)>=target);
+   const strengthValid=strength.filter(x=>prettyExercise(x).toLowerCase().includes(name.toLowerCase())&&x.painDuring<=2&&+x.reps>=target);
+   const dates=new Set([...rehabValid.map(x=>x.date),...strengthValid.map(x=>x.date)]);
+   return {name,met:dates.size>=1,consolidated:dates.size>=2};
+ });
+ const met=metRows.filter(x=>x.met).length,consolidated=metRows.filter(x=>x.consolidated).length;
+ return {phase:rule.name,pct:Math.round(met/rule.criteria.length*100),eligible:met===rule.criteria.length,consolidated,met,total:rule.criteria.length};
+}
+function renderObjectives(){
+ const s=get(),w=+(s.daily[today()]?.weight||69),runs=s.endurance.filter(x=>x.type==="Course"),swims=s.endurance.filter(x=>x.type==="Natation");
+ const runMax=runs.reduce((m,x)=>Math.max(m,x.distance),0),swimMax=swims.reduce((m,x)=>Math.max(m,x.distance),0),strengthDays=new Set(s.workoutLogs.map(x=>x.date)).size;
+ const goals=[
+  ["Base force",Math.min(100,strengthDays/8*100),true,`${strengthDays}/8 journées documentées`],
+  ["Natation 500 m",Math.min(100,swimMax/0.5*100),true,`${swimMax.toFixed(2)} km max sur une séance`],
+  ["5 km",Math.min(100,runMax/5*100),true,`${runMax.toFixed(1)} km max sur une sortie`],
+  ["72 kg",Math.min(100,Math.max(0,(w-69)/3*100)),true,`${w.toFixed(1)} / 72 kg`],
+  ["74 kg",Math.min(100,Math.max(0,(w-72)/2*100)),w>=72,`${w.toFixed(1)} / 74 kg`],
+  ["10 km",Math.min(100,runMax/10*100),runMax>=5,`${runMax.toFixed(1)} km max`],
+  ["1 km natation",Math.min(100,swimMax*100),swimMax>=0.5,`${swimMax.toFixed(2)} km max`],
+  ["Semi-marathon",Math.min(100,runMax/21*100),runMax>=10,`${runMax.toFixed(1)} km max`],
+  ["80 kg",Math.min(100,Math.max(0,(w-74)/6*100)),w>=74,`${w.toFixed(1)} / 80 kg`],
+  ["HYROX",0,runMax>=10,"À construire"],
+  ["Triathlon Sprint",0,swimMax>=1&&runMax>=10,"En attente vélo + bases triathlon"],
+  ["Triathlon Olympique",0,false,"À débloquer"],
+  ["70.3",0,false,"À débloquer"],
+  ["Ironman",0,false,"Objectif final"]
+ ];
+ document.getElementById("roadmap").innerHTML=goals.map((g,i)=>{
+   const status=g[1]>=100?"VALIDÉ":g[2]?"EN COURS":"VERROUILLÉ";
+   const cls=g[1]>=100?"good":g[2]?"active":"locked";
+   return `<div class="exercise ${status==="VERROUILLÉ"?"locked":""}"><div class="exerciseHead"><div><div class="exerciseName">${i+1}. ${g[0]}</div><div class="exerciseMeta">${g[3]}</div></div><span class="status ${cls}">${status}</span></div><div class="progress" style="margin-top:8px"><div class="bar" style="width:${Math.max(0,Math.min(100,g[1]))}%"></div></div></div>`;
+ }).join("");
+}
+
+function renderRehabPerformance(){
+  const s=get();
+  document.getElementById("rehabPerformance").innerHTML=Object.keys(BASELINE).map(zone=>{
+    const ev=phaseEvidence(s,zone),logs=s.rehabLogs.filter(x=>x.zone===zone||BASELINE[zone].some(b=>b[0]===x.exercise)).sort((a,b)=>b.date.localeCompare(a.date)||((b.set||0)-(a.set||0)));
+    const count=logs.length;
+    return `<div class="card">
+      <div><h3 style="margin:0">${zone}</h3><div class="performanceSub"><span>${count} réalisation(s)</span>${logs[0]?`<span>Dernière : ${fmtDate(logs[0].date)}</span>`:""}</div></div>
+      <div class="small" style="margin-top:7px"><b>${ev.phase}</b> · ${ev.met}/${ev.total} critères validés · ${ev.consolidated}/${ev.total} consolidés · ${ev.eligible?"phase suivante éligible":"en cours"}</div>
+      <div class="small" style="margin-top:5px">1 preuve valide = critère validé · 2 jours différents = preuve consolidée</div>
+      <div class="progress" style="margin-top:8px"><div class="bar" style="width:${ev.pct}%"></div></div>
+      <div style="margin-top:10px"><b>Référence initiale → dernière réalisation</b></div>
+      ${BASELINE[zone].map(x=>{
+        const latest=logs.find(l=>l.exercise===x[0]);
+        const program=Object.values(REHAB_PROGRAM).flat().find(r=>r.name===x[0]);
+        const current=latest?`${program?formatRehabActual(program,latest.actual):latest.actual}${` · résistance : ${formatResistance(latest.resistance)}`} · douleur ${latest.pain}/10`:'Aucune réalisation actuelle';
+        return `<div class="row rehabCompareRow"><div class="rehabCompareLeft"><span class="small">${x[0]}</span><br><span class="small">Initiale : ${x[1]}</span></div><div class="rehabCompareRight"><span class="tag">${current}</span></div></div>`;
+      }).join("")}
+      <details class="details"><summary>Historique (${count})</summary><div class="historyScroll">${logs.slice(0,12).map((x,i)=>`<div class="historyLine"><b>${fmtDate(x.date)}</b> · R${x.set||i+1} · ${x.exercise} · ${x.actual} · résistance : ${formatResistance(x.resistance)} · douleur ${x.pain}/10</div>`).join("")||'<div class="small">Aucune réalisation.</div>'}</div></details>
+    </div>`;
+  }).join("");
+}
+function targetRange(target){
+ const nums=(String(target||"").match(/\d+(?:[.,]\d+)?/g)||[]).map(v=>+v.replace(",","."));
+ if(nums.length<2)return {min:nums[0]||0,max:nums[0]||0};
+ return {min:nums[1]||nums[0]||0,max:nums[2]||nums[1]||0};
+}
+function nextLoad(last,target){ return PROGRESSION_ENGINE.muscu({target},[last]); }
+function renderPerformance(){
+ const s=get(),entries=Object.entries(s.daily).sort(([a],[b])=>a.localeCompare(b)),last7=entries.slice(-7).map(x=>+x[1].weight).filter(x=>x>0),prev7=entries.slice(-14,-7).map(x=>+x[1].weight).filter(x=>x>0);
+ const avg=last7.length?last7.reduce((a,b)=>a+b,0)/last7.length:0,prev=prev7.length?prev7.reduce((a,b)=>a+b,0)/prev7.length:0;
+ document.getElementById("perfWeight").innerHTML=`<div class="kpi">${avg?avg.toFixed(2):"—"} kg</div><div class="small">moyenne 7 jours</div><div class="small" style="margin-top:6px">${prev?`${avg-prev>=0?"+":""}${(avg-prev).toFixed(2)} kg vs semaine précédente`:"Une semaine complète sera nécessaire."}</div>`;
+ const runs=s.endurance.filter(x=>x.type==="Course"),swims=s.endurance.filter(x=>x.type==="Natation");
+ document.getElementById("perfRun").innerHTML=`<div class="kpi">${runs.reduce((a,x)=>a+x.distance,0).toFixed(1)} km</div><div class="small">${runs.length} sortie(s)</div>`;
+ document.getElementById("perfSwim").innerHTML=`<div class="kpi">${swims.reduce((a,x)=>a+x.distance,0).toFixed(2)} km</div><div class="small">${swims.length} séance(s)</div>`;
+
+ const grouped={};s.workoutLogs.forEach(x=>{const k=x.exerciseKey||safeSlug(x.displayName||x.exercise);(grouped[k]??=[]).push(x)});
+ document.getElementById("perfStrength").innerHTML=Object.keys(grouped).length?Object.keys(grouped).map(k=>{
+  const arr=grouped[k].slice().sort((a,b)=>a.date.localeCompare(b.date)||a.set-b.set),last=arr[arr.length-1],first=arr[0],max=Math.max(...arr.map(x=>x.weight)),display=prettyExercise({...last,exerciseKey:k}),target=Object.values(PROGRAMS).flat().find(x=>safeSlug(x[0])===k)?.[1]||"",delta=last.weight-first.weight,decision=getExerciseRecommendation(k,last.session,target),nextLabel=decision?`${decision.weight} kg ${decision.symbol}`:"—";
+  return `<div class="performanceRow"><div class="performanceMain"><div><div class="name">${display}</div><div class="performanceSub"><span>${arr.length} série(s)</span><span>Dernière : ${last.weight} kg × ${last.reps}</span><span>RIR ${last.rir}</span></div></div><div class="stats">Max ${max} kg<br><b>Prochain : ${nextLabel}</b></div></div>
+   <div class="performanceSub"><span>Évolution charge : ${delta>=0?"+":""}${delta.toFixed(1)} kg</span><span>Douleur dernière : ${last.painDuring}/10</span></div>
+   <details class="details"><summary>Historique (${arr.length})</summary><div class="historyScroll">${arr.slice(-12).reverse().map(x=>`<div class="historyLine"><b>${fmtDate(x.date)}</b> · S${x.set} · ${x.weight} kg × ${x.reps} · RIR ${x.rir} · douleur ${x.painDuring}/10</div>`).join("")}</div></details></div>`;
+ }).join(""):'<div class="empty">Les premières séries apparaîtront ici.</div>';
+
+ renderRehabPerformance();
+ const week=entries.filter(([d])=>d>=weekStart()),sessions=new Set(s.workoutLogs.filter(x=>x.date>=weekStart()).map(x=>x.date)).size;
+ document.getElementById("weeklyReview").innerHTML=week.length<4?'<div class="notice">Semaine en cours : pas assez de données pour produire une revue sérieuse.</div>':`<div class="status active">${sessions} jours de musculation documentés</div><div class="small" style="margin-top:8px">La revue complète utilise les tendances de poids, charge et rééducation.</div>`;
+}
+
+function renderHistory(){
+ const s=get(),items=[
+  ...Object.entries(s.daily).map(([d,x])=>({d,t:"Check-in",m:`${x.weight||"—"} kg · épaule ${x.shoulder||0}/10 · cheville ${x.ankle||0}/10 · dos ${x.back||0}/10`})),
+  ...s.workoutLogs.map(x=>({d:x.date,t:prettyExercise(x),m:`${x.weight} kg × ${x.reps} · RIR ${x.rir} · douleur ${x.painDuring}/10`})),
+  ...s.rehabLogs.map(x=>({d:x.date,t:`Rééducation · ${x.exercise}`,m:`R${x.set||1} · ${x.actual} · charge/résistance : ${formatResistance(x.resistance)} · douleur ${x.pain}/10`})),
+  ...s.endurance.map(x=>({d:x.date,t:x.type,m:`${x.distance} km · ${x.time} min · RPE ${x.rpe||"—"} · douleur ${x.pain||0}/10`}))
+ ];
+ const groups={};items.forEach(x=>(groups[x.d]??=[]).push(x));const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a)).slice(0,31);
+ document.getElementById("historyList").innerHTML=dates.length?dates.map((d,i)=>`<details class="details" ${i===0?"open":""}><summary><b>${fmtDate(d)}</b> · ${groups[d].length} donnée(s)</summary>${groups[d].map(x=>`<div class="row"><div><b>${x.t}</b><br><span class="small">${x.m}</span></div></div>`).join("")}</details>`).join(""):'<div class="empty">Aucune donnée enregistrée.</div>';
+}
+
+function checkin(){
+ const s=get(),k=today();if(s.daily[k]?.saved){toast("Check-in déjà enregistré aujourd'hui");return}
+ s.daily[k]={...(s.daily[k]||{}),weight:+document.getElementById("checkWeight").value||69,sleep:+document.getElementById("checkSleep").value||0,shoulder:+document.getElementById("checkShoulder").value||0,ankle:+document.getElementById("checkAnkle").value||0,back:+document.getElementById("checkBack").value||0,notes:document.getElementById("checkNotes").value||"",saved:true};
+ s.daily[k].saved=true;save(s);renderAll();toast("Check-in enregistré");
+}
+
+function exportData(){const blob=new Blob([JSON.stringify(get(),null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="road-to-ironman-data.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),600)}
+function importDataFile(file){
+ const reader=new FileReader();
+ reader.onload=()=>{try{const incoming=JSON.parse(reader.result);if(!incoming||typeof incoming!=="object")throw new Error("invalid");localStorage.setItem(KEY,JSON.stringify(incoming));location.reload()}catch{toast("Fichier JSON invalide")}};
+ reader.readAsText(file);
+}
+function resetAll(){if(!confirm("Supprimer toutes les données locales ?"))return;localStorage.removeItem(KEY);location.reload()}
+
+function renderAll(){
+ const renders=[['dashboard',renderDashboard],['training',renderTraining],['nutrition',renderNutrition],['objectives',renderObjectives],['performance',renderPerformance],['history',renderHistory]];
+ for(const [name,fn] of renders){try{fn()}catch(e){console.error(`render ${name}`,e)}}
+}
+
+
+function hardenTouch(){
+ document.addEventListener("pointerup",()=>{}, {passive:true});
+ document.querySelectorAll("button,label,input,select").forEach(el=>{
+   el.style.webkitTapHighlightColor="transparent";
+ });
+}
+
+function bindStatic(){
+ document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>showView(b.dataset.view));
+ document.getElementById("checkinBtn").onclick=checkin;
+ document.getElementById("exportTop").onclick=exportData;document.getElementById("exportHistory").onclick=exportData;
+ document.getElementById("importHistory").onclick=()=>document.getElementById("importFile").click();document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importDataFile(e.target.files[0])};
+ document.getElementById("resetAll").onclick=resetAll;
+ document.getElementById("newMealBtn").onclick=()=>openModal("mealModal");document.getElementById("closeMeal").onclick=()=>closeModal("mealModal");document.getElementById("createMealBtn").onclick=createMeal;
+ document.getElementById("newSuppBtn").onclick=()=>openModal("suppModal");document.getElementById("closeSupp").onclick=()=>closeModal("suppModal");document.getElementById("createSuppBtn").onclick=createSupplement;
+ const updateSuppPreview=()=>{const d=document.getElementById("suppDose").value.trim(),u=document.getElementById("suppUnit").value.trim();document.getElementById("suppPreview").textContent=d?`Ex. ${d}${u?` ${u}`:""}`:"Ex. 5 g"};
+ document.getElementById("suppDose").oninput=updateSuppPreview;document.getElementById("suppUnit").oninput=updateSuppPreview;
+}
+function init(){
+ document.getElementById("todayDate").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+ migrate();const s=get();if(!s.daily[today()]){s.daily[today()]={weight:69,sleep:0,shoulder:0,ankle:0,back:0,notes:"",calories:0,protein:0,carbs:0,fat:0,saved:false};save(s)}
+ bindStatic();renderAll();
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+</script>
+</body>
+</html>
