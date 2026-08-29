@@ -293,7 +293,7 @@ input[type=checkbox]{width:22px;height:22px;flex:0 0 auto;padding:0;accent-color
 </div>
 
 <div class="toast" id="toast"></div>
-<footer class="footer">Road to Ironman · données locales · export/import JSON · V43</footer>
+<footer class="footer">Road to Ironman · données locales · export/import JSON · V43.1</footer>
 </div>
 
 <script>
@@ -340,16 +340,15 @@ const REHAB_PROGRAM={
  ]
 };
 
-const PROGRAM_START="2026-08-30";
-const SCHEDULE=[
- [{type:"Musculation",name:"Upper A",time:"Matin"}],
- [{type:"Musculation",name:"Lower A",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
- [{type:"Récupération",name:"Marche / mobilité légère",time:"Journée"}],
- [{type:"Musculation",name:"Upper B",time:"Matin"}],
- [{type:"Musculation",name:"Lower B",time:"Matin"}],
- [{type:"Musculation",name:"Upper B",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
- [{type:"Repos",name:"Repos",time:"Journée"}]
-];
+const SCHEDULE={
+ 1:[{type:"Musculation",name:"Upper A",time:"Matin"}],
+ 2:[{type:"Musculation",name:"Lower A",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
+ 3:[{type:"Récupération",name:"Marche / mobilité légère",time:"Journée"}],
+ 4:[{type:"Musculation",name:"Upper B",time:"Matin"}],
+ 5:[{type:"Musculation",name:"Lower B",time:"Matin"}],
+ 6:[{type:"Musculation",name:"Upper B",time:"Matin"},{type:"Natation",name:"Natation",time:"Soir"}],
+ 0:[{type:"Repos",name:"Repos",time:"Journée"}]
+};
 
 const BASELINE={
  "Dos":[["Bird-dog","6/côté · 0/10"],["Side plank","20 s · 0/10"],["Hip hinge","10 reps · 0/10"]],
@@ -416,9 +415,8 @@ function prettyExercise(log){
  return names.find(n=>safeSlug(n)===raw)||names.find(n=>raw.includes(safeSlug(n)))||log.displayName||log.exercise||"Exercice";
 }
 function formatResistance(v){const s=String(v??"").trim();return s===""?"non renseigné":s}
-function localDateKey(date=new Date()){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return `${y}-${m}-${d}`}
-function programDayIndex(){const start=new Date(`${PROGRAM_START}T12:00:00`),now=new Date(`${localDateKey()}T12:00:00`);const diff=Math.floor((now-start)/86400000);return ((diff%SCHEDULE.length)+SCHEDULE.length)%SCHEDULE.length}
-function dayPlan(){return SCHEDULE[programDayIndex()]||[]}
+function dateProgram(dateStr=today()){const p=currentProgramForDate(dateStr);const plan=[];if(p.muscu)plan.push({type:"Musculation",name:p.muscu,time:"Matin"});else if(p.cycleDay===3)plan.push({type:"Récupération",name:"Marche / mobilité légère",time:"Journée"});else if(p.cycleDay===7)plan.push({type:"Repos",name:"Repos",time:"Journée"});if(p.endurance)plan.push({type:"Natation",name:"Natation",time:"Soir"});return plan}
+function dayPlan(){return dateProgram(today())}
 function activeEndurance(){return dayPlan().find(x=>["Natation","Course","Marche"].includes(x.type))}
 
 
@@ -816,7 +814,103 @@ function checkin(){
  s.daily[k].saved=true;save(s);renderAll();toast("Check-in enregistré");
 }
 
-function exportData(){const blob=new Blob([JSON.stringify(get(),null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="road-to-ironman-data.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),600)}
+function currentProgramForDate(dateStr){
+  const d=new Date(dateStr+"T12:00:00");
+  const start=new Date("2026-08-30T12:00:00");
+  const diff=Math.floor((d-start)/86400000);
+  const idx=((diff%7)+7)%7;
+  const cycle=[
+    {day:1,muscu:"Upper A",endurance:null},
+    {day:2,muscu:"Lower A",endurance:"Natation"},
+    {day:3,muscu:null,endurance:null},
+    {day:4,muscu:"Upper B",endurance:null},
+    {day:5,muscu:"Lower B",endurance:null},
+    {day:6,muscu:"Upper B",endurance:"Natation"},
+    {day:7,muscu:null,endurance:null}
+  ];
+  const c=cycle[idx];
+  return {cycleDay:idx+1,muscu:c.muscu,endurance:c.endurance};
+}
+function normalizeExportData(raw){
+  const s=JSON.parse(JSON.stringify(raw||{}));
+  const version=3;
+  const exNames=[...Object.values(PROGRAMS).flat().map(x=>x[0])];
+  const rehabNames=[...Object.values(REHAB_PROGRAM).flat().map(x=>x.name)];
+  const aliasMap={...LEGACY_ALIASES};
+  const normalizeName=(log)=>{
+    const rawKey=safeSlug(log.exerciseKey||log.exercise||log.displayName||log.name||"");
+    const display=aliasMap[rawKey]||exNames.find(n=>safeSlug(n)===rawKey)||rehabNames.find(n=>safeSlug(n)===rawKey)||log.displayName||log.name||log.exercise||"Exercice";
+    return {displayName:display,exerciseKey:safeSlug(display)};
+  };
+  s.schemaVersion=version;
+  s.exportedAt=new Date().toISOString();
+  s.program={
+    name:"Road to Ironman",
+    scheduleMode:"date-relative",
+    startDate:"2026-08-30",
+    cycleLengthDays:7
+  };
+  s.programDays={};
+  const dates=new Set([
+    ...Object.keys(s.daily||{}),
+    ...(s.workoutLogs||[]).map(x=>x.date),
+    ...(s.rehabLogs||[]).map(x=>x.date),
+    ...(s.endurance||[]).map(x=>x.date),
+    ...Object.keys(s.workoutChecks||{}).map(k=>k.split("_").pop())
+  ]);
+  [...dates].filter(Boolean).sort().forEach(date=>s.programDays[date]=currentProgramForDate(date));
+  s.prescribed={workoutChecks:s.workoutChecks||{},programDays:s.programDays};
+  delete s.workoutChecks;
+  s.workoutLogs=(s.workoutLogs||[]).map((x,i)=>{
+    const n=normalizeName(x);
+    return {
+      id:x.id||`workout_${i}_${x.date||""}`,
+      date:x.date||null,session:x.session||null,set:Number(x.set)||i+1,
+      exerciseKey:n.exerciseKey,displayName:n.displayName,
+      weight:Number(x.weight)||0,reps:Number(x.reps)||0,rir:Number(x.rir)||0,
+      painDuring:Number(x.painDuring)||0
+    };
+  });
+  const rehabMode=(name)=>{
+    const r=rehabNames.find(n=>n.toLowerCase()===String(name||"").toLowerCase());
+    const cfg=Object.values(REHAB_PROGRAM).flat().find(x=>x.name===r);
+    if(!cfg) return {mode:"reps",unit:"repetitions",perSide:false};
+    return {mode:cfg.mode||"reps",unit:cfg.mode==="time"?"secondes":cfg.mode==="perSide"?"repetitions/côté":"répétitions",perSide:cfg.mode==="perSide"};
+  };
+  s.rehabLogs=(s.rehabLogs||[]).map((x,i)=>{
+    const cfg=rehabMode(x.exercise);
+    return {
+      id:x.id||`rehab_${i}_${x.date||""}`,
+      date:x.date||null,session:x.session||null,set:Number(x.set)||i+1,
+      exercise:x.exercise||"Rééducation",mode:cfg.mode,unit:cfg.unit,perSide:cfg.perSide,
+      actualValue:parseActualValue(x.actual),actualRaw:String(x.actual??""),
+      resistance:x.resistance===undefined?"":String(x.resistance),
+      pain:Number(x.pain)||0,quality:x.quality||null
+    };
+  });
+  s.endurance=(s.endurance||[]).map((x,i)=>({
+    id:x.id||`endurance_${i}_${x.date||""}`,date:x.date||null,type:x.type||null,session:x.session||null,
+    distanceKm:Number(x.distance)||0,durationMin:Number(x.time)||0,rpe:Number(x.rpe)||0,pain:Number(x.pain)||0,source:x.source||null
+  }));
+  s.daily=Object.fromEntries(Object.entries(s.daily||{}).map(([date,d])=>[date,{
+    weight:Number(d.weight)||0,sleepHours:Number(d.sleep)||0,shoulderPain:Number(d.shoulder)||0,
+    anklePain:Number(d.ankle)||0,backPain:Number(d.back)||0,notes:d.notes||"",
+    calories:Number(d.calories)||0,protein:Number(d.protein)||0,carbs:Number(d.carbs)||0,fat:Number(d.fat)||0,
+    saved:Boolean(d.saved||d.checkinSaved)
+  }]));
+  s.meta={
+    analysisReady:true,
+    sourceOfTruth:"export-json",
+    notes:"Normalized export for session-by-session analysis. Prescribed vs performed are kept separately.",
+    fields:["date","session","exercise","set","weight/load","reps/value","duration","rpe","rir","pain","source"]
+  };
+  return s;
+}
+function exportData(){
+  const normalized=normalizeExportData(get());
+  const blob=new Blob([JSON.stringify(normalized,null,2)],{type:"application/json"}),a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="road-to-ironman-data-v3.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),600)
+}
 function importDataFile(file){
  const reader=new FileReader();
  reader.onload=()=>{try{const incoming=JSON.parse(reader.result);if(!incoming||typeof incoming!=="object")throw new Error("invalid");localStorage.setItem(KEY,JSON.stringify(incoming));location.reload()}catch{toast("Fichier JSON invalide")}};
