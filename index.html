@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0d10">
-<title>Road to Ironman V59</title>
+<title>Road to Ironman V60</title>
 <style>
 :root{
   --bg:#0a0d10;--panel:#11161b;--panel2:#171d24;--line:#26303a;--text:#f4f6f8;--muted:#96a1ae;
@@ -180,12 +180,12 @@ input[type=checkbox]{width:22px;height:22px;flex:0 0 auto;padding:0;accent-color
 
 <div class="modalBackdrop" id="editModal"><div class="modal" id="editModalContent"></div></div>
 <div class="toast" id="toast"></div>
-<footer class="footer">Road to Ironman · données locales · export/import JSON · V59</footer>
+<footer class="footer">Road to Ironman · données locales · export/import JSON · V60</footer>
 </div>
 
 <script>
 const KEY="roadToTriathlonV3";
-const START_DATE="2026-08-30";
+const START_DATE="2026-09-28";
 const VIEW_STATE={date:todayISO(),variants:{}};
 
 /* ---------------- PROGRAMME ---------------- */
@@ -303,7 +303,7 @@ function openModal(id){document.getElementById(id).style.display="flex"}
 function closeModal(id){document.getElementById(id).style.display="none"}
 function isoDateAdd(date,days){const d=new Date(date+"T12:00:00");d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
 function mondayOf(date){const d=new Date(date+"T12:00:00");const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day));return d.toISOString().slice(0,10)}
-function currentProgramForDate(date){const start=new Date(START_DATE+"T12:00:00"),d=new Date(date+"T12:00:00");const diff=Math.floor((d-start)/86400000);const idx=((diff%7)+7)%7;const c=CYCLE[idx];return{cycleDay:idx+1,muscu:c.muscu,endurance:c.endurance}}
+function currentProgramForDate(date){const start=new Date(START_DATE+"T12:00:00"),d=new Date(date+"T12:00:00");const diff=Math.floor((d-start)/86400000);if(diff<0)return{cycleDay:null,muscu:null,endurance:null,preProgram:true};const idx=diff%7;const c=CYCLE[idx];return{cycleDay:idx+1,muscu:c.muscu,endurance:c.endurance,preProgram:false}}
 function datePlan(date){const p=currentProgramForDate(date);return{muscu:p.muscu,endurance:p.endurance,reinforcement:p.muscu?(REINFORCEMENT_PLAN[p.muscu]||[]):[]}}
 function targetFor(def,session){return def.targetBySession?.[session]||def.target}
 function getReinforcementKeys(session){return REINFORCEMENT_PLAN[session]||[]}
@@ -525,13 +525,14 @@ function renderDashboardCalendar(){
    const date=isoDateAdd(start,i),p=datePlan(date),done=p.muscu?sessionIsComplete(date,p.muscu):false;
    const dayName=new Date(date+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short"});
    const dayNum=new Date(date+"T12:00:00").getDate();
+   const pre=p.preProgram;
    cells.push(`<div class="dayCard ${i===0?"today":""}">
      <div class="dayName">${dayName}</div>
      <div class="dayNum">${dayNum}</div>
-     <div class="dayLine"><b>Musculation</b> · ${escapeHtml(p.muscu||"Repos")}</div>
+     ${pre?`<div class="dayLine"><b>Programme</b> · Débute lundi</div>`:`<div class="dayLine"><b>Musculation</b> · ${escapeHtml(p.muscu||"Repos")}</div>
      <div class="dayLine"><b>Renforcement</b> · ${p.muscu?"Prévu":"—"}</div>
      <div class="dayLine"><b>Endurance</b> · ${escapeHtml(p.endurance||"—")}</div>
-     ${done?`<div class="dayLine">✓ Musculation terminée</div>`:""}
+     ${done?`<div class="dayLine">✓ Musculation terminée</div>`:""}`}
    </div>`);
  }
  host.innerHTML=`<div class="weekStrip">${cells.join("")}</div>`;
