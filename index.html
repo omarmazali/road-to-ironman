@@ -493,6 +493,7 @@ function renderDashboardCalendar(){
      <div class="dayNum">${dayNum}</div>
      <div class="dayLine"><b>${escapeHtml(p.muscu||"Repos")}</b></div>
      ${p.endurance?`<div class="dayLine">${escapeHtml(p.endurance)}</div>`:""}
+     ${p.muscu?`<div class="dayLine">Renforcement</div>`:""}
      ${done?`<div class="dayLine">✓</div>`:""}
    </div>`);
  }
