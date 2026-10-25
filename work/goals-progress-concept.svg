@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="1960" viewBox="0 0 390 980" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="390" y2="980" gradientUnits="userSpaceOnUse"><stop stop-color="#080A0E"/><stop offset="1" stop-color="#10141B"/></linearGradient>
+    <linearGradient id="hero" x1="24" y1="165" x2="366" y2="390" gradientUnits="userSpaceOnUse"><stop stop-color="#18251A"/><stop offset=".55" stop-color="#141B19"/><stop offset="1" stop-color="#121820"/></linearGradient>
+    <linearGradient id="line" x1="34" y1="650" x2="350" y2="570" gradientUnits="userSpaceOnUse"><stop stop-color="#C9FF4A"/><stop offset="1" stop-color="#69D8E8"/></linearGradient>
+    <filter id="shadow" x="0" y="0" width="420" height="1020" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="12"/></filter>
+  </defs>
+  <rect width="390" height="980" rx="34" fill="url(#bg)"/>
+  <rect x="18" y="17" width="354" height="946" rx="28" stroke="#FFFFFF" stroke-opacity=".06"/>
+  <g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+    <text x="28" y="51" fill="#C9FF4A" font-size="9" font-weight="800" letter-spacing="2.1">ROAD TO IRONMAN</text>
+    <text x="28" y="88" fill="#F5F7FA" font-size="27" font-weight="800" letter-spacing="-.8">Progress</text>
+    <text x="28" y="108" fill="#89919D" font-size="11">Your training, made visible.</text>
+    <rect x="239" y="67" width="123" height="27" rx="13.5" fill="#C9FF4A" fill-opacity=".09" stroke="#C9FF4A" stroke-opacity=".19"/>
+    <text x="300.5" y="84" fill="#D9FFA0" font-size="8" font-weight="800" letter-spacing=".7" text-anchor="middle">CONCEPT · SAMPLE DATA</text>
+
+    <rect x="25" y="128" width="340" height="230" rx="23" fill="url(#hero)" stroke="#C9FF4A" stroke-opacity=".18"/>
+    <text x="44" y="156" fill="#A7B17F" font-size="9" font-weight="800" letter-spacing="1.7">CURRENT TRAINING BLOCK</text>
+    <text x="44" y="183" fill="#F4F7F1" font-size="20" font-weight="800">Base building</text>
+    <text x="44" y="201" fill="#858E91" font-size="10">Week 3 of 8 · 5 weeks to go</text>
+    <circle cx="308" cy="184" r="31" stroke="#FFFFFF" stroke-opacity=".08" stroke-width="6"/>
+    <circle cx="308" cy="184" r="31" stroke="#C9FF4A" stroke-width="6" stroke-linecap="round" stroke-dasharray="142 195" transform="rotate(-90 308 184)"/>
+    <text x="308" y="188" fill="#F8FFD9" font-size="13" font-weight="800" text-anchor="middle">73%</text>
+    <text x="44" y="230" fill="#5F686C" font-size="8" font-weight="800" letter-spacing="1.5">THIS WEEK</text>
+    <rect x="42" y="244" width="91" height="78" rx="15" fill="#0B1012" fill-opacity=".56" stroke="#FFFFFF" stroke-opacity=".06"/>
+    <text x="56" y="267" fill="#7B8588" font-size="9">Sessions</text><text x="56" y="295" fill="#F4F7F1" font-size="22" font-weight="800">4<tspan fill="#667073" font-size="13"> / 6</tspan></text><text x="56" y="310" fill="#C9FF4A" font-size="8" font-weight="700">2 remaining</text>
+    <rect x="145" y="244" width="91" height="78" rx="15" fill="#0B1012" fill-opacity=".56" stroke="#FFFFFF" stroke-opacity=".06"/>
+    <text x="159" y="267" fill="#7B8588" font-size="9">Training time</text><text x="159" y="295" fill="#F4F7F1" font-size="22" font-weight="800">3h 24</text><text x="159" y="310" fill="#879197" font-size="8">this week</text>
+    <rect x="248" y="244" width="99" height="78" rx="15" fill="#0B1012" fill-opacity=".56" stroke="#FFFFFF" stroke-opacity=".06"/>
+    <text x="262" y="267" fill="#7B8588" font-size="9">Endurance</text><text x="262" y="295" fill="#F4F7F1" font-size="22" font-weight="800">37.7</text><text x="262" y="310" fill="#879197" font-size="8">km this week</text>
+
+    <rect x="25" y="374" width="340" height="224" rx="22" fill="#11151C" stroke="#FFFFFF" stroke-opacity=".07"/>
+    <text x="44" y="405" fill="#F2F4F7" font-size="14" font-weight="800">Training load</text>
+    <text x="44" y="422" fill="#747E89" font-size="9">Weekly volume · last 6 weeks</text>
+    <rect x="274" y="390" width="72" height="24" rx="12" fill="#FFFFFF" fill-opacity=".04" stroke="#FFFFFF" stroke-opacity=".07"/>
+    <text x="310" y="405" fill="#BCC3CA" font-size="8" font-weight="700" text-anchor="middle">DISTANCE ⌄</text>
+    <line x1="48" y1="535" x2="343" y2="535" stroke="#FFFFFF" stroke-opacity=".06"/>
+    <line x1="48" y1="493" x2="343" y2="493" stroke="#FFFFFF" stroke-opacity=".05"/>
+    <line x1="48" y1="451" x2="343" y2="451" stroke="#FFFFFF" stroke-opacity=".05"/>
+    <text x="45" y="539" fill="#606A75" font-size="7" text-anchor="end">0</text><text x="45" y="497" fill="#606A75" font-size="7" text-anchor="end">20</text><text x="45" y="455" fill="#606A75" font-size="7" text-anchor="end">40</text>
+    <path d="M59 520 C82 512 91 507 110 510 S142 488 160 492 S193 478 211 484 S245 464 262 470 S300 449 329 456" stroke="url(#line)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="59" cy="520" r="3.5" fill="#C9FF4A"/><circle cx="110" cy="510" r="3.5" fill="#C9FF4A"/><circle cx="160" cy="492" r="3.5" fill="#C9FF4A"/><circle cx="211" cy="484" r="3.5" fill="#C9FF4A"/><circle cx="262" cy="470" r="3.5" fill="#C9FF4A"/><circle cx="329" cy="456" r="4" fill="#C9FF4A" stroke="#DFFF9B" stroke-width="2"/>
+    <text x="59" y="554" fill="#6E7780" font-size="7" text-anchor="middle">W1</text><text x="110" y="554" fill="#6E7780" font-size="7" text-anchor="middle">W2</text><text x="160" y="554" fill="#6E7780" font-size="7" text-anchor="middle">W3</text><text x="211" y="554" fill="#6E7780" font-size="7" text-anchor="middle">W4</text><text x="262" y="554" fill="#6E7780" font-size="7" text-anchor="middle">W5</text><text x="329" y="554" fill="#C9FF4A" font-size="7" font-weight="700" text-anchor="middle">NOW</text>
+    <text x="44" y="580" fill="#7C8790" font-size="8">+18% vs previous 6 weeks</text><text x="346" y="580" fill="#DFFFA4" font-size="8" font-weight="700" text-anchor="end">Steady build</text>
+
+    <text x="27" y="631" fill="#F2F4F7" font-size="14" font-weight="800">Your disciplines</text>
+    <text x="363" y="631" fill="#747E89" font-size="9" text-anchor="end">THIS WEEK</text>
+    <rect x="25" y="647" width="106" height="91" rx="17" fill="#101922" stroke="#7EA7FF" stroke-opacity=".18"/>
+    <circle cx="45" cy="669" r="10" fill="#5688F3" fill-opacity=".15"/><path d="M39 669c2-2 4-2 6 0s4 2 6 0M39 673c2-2 4-2 6 0s4 2 6 0" stroke="#9DBBFF" stroke-width="1.3" stroke-linecap="round"/>
+    <text x="40" y="699" fill="#7D8791" font-size="8" font-weight="700">SWIM</text><text x="40" y="722" fill="#F4F7F9" font-size="17" font-weight="800">1.5 <tspan fill="#89929B" font-size="9">km</tspan></text>
+    <rect x="142" y="647" width="106" height="91" rx="17" fill="#101922" stroke="#C9FF4A" stroke-opacity=".18"/>
+    <circle cx="162" cy="669" r="10" fill="#C9FF4A" fill-opacity=".12"/><circle cx="162" cy="669" r="5" stroke="#DBFF93" stroke-width="1.3"/><path d="M162 664v10m-5-5h10" stroke="#DBFF93" stroke-width="1.1"/>
+    <text x="157" y="699" fill="#7D8791" font-size="8" font-weight="700">BIKE</text><text x="157" y="722" fill="#F4F7F9" font-size="17" font-weight="800">28 <tspan fill="#89929B" font-size="9">km</tspan></text>
+    <rect x="259" y="647" width="106" height="91" rx="17" fill="#101922" stroke="#FF9A7C" stroke-opacity=".18"/>
+    <circle cx="279" cy="669" r="10" fill="#FF9A7C" fill-opacity=".12"/><path d="M275 673l3-8 5 8m-6-3h5" stroke="#FFC4B2" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="274" y="699" fill="#7D8791" font-size="8" font-weight="700">RUN</text><text x="274" y="722" fill="#F4F7F9" font-size="17" font-weight="800">8.2 <tspan fill="#89929B" font-size="9">km</tspan></text>
+
+    <rect x="25" y="756" width="340" height="112" rx="21" fill="#11151C" stroke="#FFFFFF" stroke-opacity=".07"/>
+    <text x="44" y="785" fill="#F2F4F7" font-size="14" font-weight="800">Next milestone</text>
+    <text x="44" y="805" fill="#87919B" font-size="9">SWIM · 1.5 KM CONTINUOUS</text>
+    <text x="44" y="836" fill="#F4F7F9" font-size="20" font-weight="800">1.0 <tspan fill="#89929B" font-size="11">/ 1.5 km</tspan></text>
+    <text x="342" y="835" fill="#C9FF4A" font-size="11" font-weight="800" text-anchor="end">67%</text>
+    <rect x="44" y="846" width="298" height="5" rx="2.5" fill="#FFFFFF" fill-opacity=".07"/><rect x="44" y="846" width="199" height="5" rx="2.5" fill="#C9FF4A"/>
+
+    <rect x="25" y="886" width="340" height="53" rx="16" fill="#11151C" stroke="#FFFFFF" stroke-opacity=".07"/>
+    <circle cx="49" cy="912" r="12" fill="#FFFFFF" fill-opacity=".045"/><path d="M49 904v16m-6-10c1-2 3-3 6-3s5 1 6 3m-11 3c1 2 3 3 5 3m6-3c-1 2-3 3-5 3" stroke="#BEC5CB" stroke-width="1.1" stroke-linecap="round"/>
+    <text x="70" y="908" fill="#E8EBEE" font-size="10" font-weight="700">Body &amp; nutrition</text><text x="70" y="924" fill="#7F8992" font-size="8">Weight trend · calorie consistency · protein</text><text x="345" y="918" fill="#818B94" font-size="15" text-anchor="end">⌄</text>
+  </g>
+</svg>

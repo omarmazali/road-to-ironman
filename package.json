@@ -1,0 +1,32 @@
+{
+  "name": "road-to-ironman-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test:export": "node --experimental-strip-types --test tests/export-roundtrip.test.mjs",
+    "test:training": "node --experimental-strip-types --test tests/training-consistency.test.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "1.48.0",
+    "next": "^16.4.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.10.0",
+    "@types/react": "19.2.13",
+    "@types/react-dom": "19.2.3",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.3.6",
+    "postcss": "^8.5.31",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3"
+  }
+}

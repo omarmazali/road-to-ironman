@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 4,
+  "goals": { "startWeight": 68, "midWeight": 73, "targetWeight": 78, "calTarget": 2500, "proteinTarget": 150 },
+  "daily": {
+    "2026-09-20": { "weight": 70.2, "sleep": 7.1, "shoulder": 0, "ankle": 0, "back": 1, "notes": "E2E historical check-in", "saved": true },
+    "2026-09-27": { "weight": 69.9, "sleep": 7.4, "shoulder": 0, "ankle": 0, "back": 1, "notes": "E2E historical check-in", "saved": true },
+    "2026-10-04": { "weight": 69.5, "sleep": 7.2, "shoulder": 1, "ankle": 0, "back": 0, "notes": "E2E historical check-in", "saved": true },
+    "2026-10-11": { "weight": 69.1, "sleep": 7.6, "shoulder": 0, "ankle": 0, "back": 0, "notes": "E2E historical check-in", "saved": true },
+    "2026-10-18": { "weight": 68.8, "sleep": 7.3, "shoulder": 1, "ankle": 0, "back": 0, "notes": "E2E historical check-in", "saved": true },
+    "2026-10-25": { "weight": 68.4, "sleep": 7.5, "shoulder": 1, "ankle": 0, "back": 2, "notes": "E2E export fixture", "saved": true }
+  },
+  "meals": [
+    { "id": "e2e-meal", "name": "E2E breakfast", "kcal": 370, "p": 16, "c": 60, "f": 8, "note": "E2E meal", "ingredients": [{ "id": "e2e-ingredient", "foodId": "e2e-food", "name": "Oats E2E", "grams": 100, "unit": "g", "kcal100": 370, "p100": 16, "c100": 60, "f100": 8 }] }
+  ],
+  "mealLogs": {
+    "2026-09-20": { "breakfast": { "mealId": "e2e-meal", "snapshot": { "name": "E2E breakfast", "kcal": 300, "p": 12, "c": 48, "f": 6, "ingredients": [{ "id": "e2e-ingredient", "name": "Oats E2E", "grams": 80, "unit": "g" }] } } },
+    "2026-09-27": { "breakfast": { "mealId": "e2e-meal", "snapshot": { "name": "E2E breakfast", "kcal": 320, "p": 13, "c": 51, "f": 7, "ingredients": [{ "id": "e2e-ingredient", "name": "Oats E2E", "grams": 86, "unit": "g" }] } } },
+    "2026-10-04": { "breakfast": { "mealId": "e2e-meal", "snapshot": { "name": "E2E breakfast", "kcal": 340, "p": 14, "c": 54, "f": 7, "ingredients": [{ "id": "e2e-ingredient", "name": "Oats E2E", "grams": 92, "unit": "g" }] } } },
+    "2026-10-11": { "breakfast": { "mealId": "e2e-meal", "snapshot": { "name": "E2E breakfast", "kcal": 350, "p": 15, "c": 56, "f": 8, "ingredients": [{ "id": "e2e-ingredient", "name": "Oats E2E", "grams": 95, "unit": "g" }] } } },
+    "2026-10-18": { "breakfast": { "mealId": "e2e-meal", "snapshot": { "name": "E2E breakfast", "kcal": 360, "p": 15.5, "c": 58, "f": 8, "ingredients": [{ "id": "e2e-ingredient", "name": "Oats E2E", "grams": 97, "unit": "g" }] } } },
+    "2026-10-25": { "breakfast": { "mealId": "e2e-meal", "snapshot": { "name": "E2E breakfast", "kcal": 370, "p": 16, "c": 60, "f": 8, "ingredients": [{ "id": "e2e-ingredient", "name": "Oats E2E", "grams": 100, "unit": "g" }] } } }
+  },
+  "foods": [{ "id": "e2e-food", "name": "Oats E2E", "kcal100": 370, "p100": 16, "c100": 60, "f100": 8, "unit": "g", "source": "E2E fixture", "code": "E2E-FOOD-01" }],
+  "supplements": { "items": [{ "id": "e2e-supplement", "name": "Supplement E2E", "dose": "3", "unit": "g" }], "logs": { "2026-10-25": { "e2e-supplement": true } } },
+  "workoutLogs": [{ "id": "e2e-strength", "date": "2026-10-25", "session": "Upper A", "set": 1, "exerciseKey": "bench_press_horizontal", "displayName": "Bench Press", "variant": "smith", "weight": 25, "reps": 10, "rir": 2, "painDuring": 0 }],
+  "reinforcementLogs": [{ "id": "e2e-reinforcement", "date": "2026-10-25", "set": 1, "exerciseKey": "e2e_rehab_test", "exercise": "E2E rehab", "mode": "reps", "actualValue": 12, "actualRaw": "12", "resistance": 2.5, "pain": 0 }],
+  "endurance": [
+    { "id": "e2e-run-1", "date": "2026-09-20", "type": "Course", "session": "Course", "distanceKm": 3, "durationMin": 18.5, "rpe": 5, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-run-2", "date": "2026-09-27", "type": "Course", "session": "Course", "distanceKm": 3.6, "durationMin": 21.5, "rpe": 5, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-run-3", "date": "2026-10-04", "type": "Course", "session": "Course", "distanceKm": 4.2, "durationMin": 24.5, "rpe": 6, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-run-4", "date": "2026-10-11", "type": "Course", "session": "Course", "distanceKm": 4.5, "durationMin": 26.1, "rpe": 6, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-run-5", "date": "2026-10-18", "type": "Course", "session": "Course", "distanceKm": 4.8, "durationMin": 27.3, "rpe": 6, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-run-6", "date": "2026-10-25", "type": "Course", "session": "Course", "distanceKm": 5.2, "durationMin": 29.5, "rpe": 6, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-swim-1", "date": "2026-09-20", "type": "Natation", "session": "Natation", "distanceKm": 0.5, "durationMin": 16, "rpe": 4, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-swim-2", "date": "2026-09-27", "type": "Natation", "session": "Natation", "distanceKm": 0.65, "durationMin": 20, "rpe": 4, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-swim-3", "date": "2026-10-04", "type": "Natation", "session": "Natation", "distanceKm": 0.7, "durationMin": 22, "rpe": 5, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-swim-4", "date": "2026-10-11", "type": "Natation", "session": "Natation", "distanceKm": 0.85, "durationMin": 26, "rpe": 5, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-swim-5", "date": "2026-10-18", "type": "Natation", "session": "Natation", "distanceKm": 1, "durationMin": 29, "rpe": 5, "pain": 0, "source": "E2E fixture" },
+    { "id": "e2e-swim-6", "date": "2026-10-25", "type": "Natation", "session": "Natation", "distanceKm": 1.1, "durationMin": 31, "rpe": 5, "pain": 0, "source": "E2E fixture" }
+  ],
+  "variantChoices": { "2026-10-25|Upper A|bench_press_horizontal": "smith" },
+  "goalHistory": { "e2e_milestone": { "achieved": true, "date": "2026-10-25", "note": "E2E fixture" } },
+  "calendarOverrides": { "2026-10-26": { "endurance": "Course", "note": "E2E fixture" } }
+}
