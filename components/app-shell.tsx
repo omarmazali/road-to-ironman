@@ -11,6 +11,7 @@ import { Brand } from '@/components/brand'
 import { CYCLE, LOADS, PROGRAM_DEFS, REINFORCEMENT_DEFS, REINFORCEMENT_PLAN, START_DATE } from '@/lib/program'
 import { createExportPayload } from '@/lib/export-data'
 import { calculateIngredientNutrition } from '@/lib/nutrition'
+import { aggregateRunningPeriods } from '@/lib/running-series'
 import { isStrengthSessionComplete as isFullStrengthSessionComplete, summarizePlannedSessions } from '@/lib/training-consistency'
 
 const STORAGE_KEY = 'roadToTriathlonV3'
@@ -654,7 +655,7 @@ function NutritionView({ data, mutate, date, setDate, notify }: { data: AnyRow; 
 
 function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; notify: (message: string) => void }) {
   const [goals, setGoals] = useState<AnyRow>({ ...data.goals })
-  const [chartMetric, setChartMetric] = useState<'weight' | 'run' | 'pace' | 'swim' | 'nutrition'>('run')
+  const [chartMetric, setChartMetric] = useState<'weight' | 'run' | 'swim' | 'nutrition'>('run')
   const [chartPeriod, setChartPeriod] = useState<'day' | 'week' | 'month'>('week')
   const weights = recordedWeights(data), weeks = weeklyAverages(data)
   const saveGoals = () => { if (goals.targetWeight <= goals.startWeight || goals.calTarget <= 0 || goals.proteinTarget <= 0) { notify('Check your goal values'); return }; mutate(d => { d.goals = { ...d.goals, ...goals } }); notify('Goals updated') }
@@ -731,18 +732,15 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
     const start = monthStart(index - 5), end = addDays(monthStart(index - 4), -1)
     return { start, end, label: formatDate(start, { month: 'short' }) }
   })
-  const makeActualSeries = (metric: 'weight' | 'run' | 'pace' | 'swim') => periods.map(period => {
+  const makeActualSeries = (metric: 'weight' | 'swim') => periods.map(period => {
     if (metric === 'weight') {
       const matching = weights.filter(row => row.date >= period.start && row.date <= period.end)
       const value = matching.length ? matching.reduce((sum, row) => sum + row.weight, 0) / matching.length : null
       return { label: period.label, value }
     }
-    const type = metric === 'swim' ? 'Natation' : 'Course'
+    const type = 'Natation'
     const matching = data.endurance.filter((row: AnyRow) => row.type === type && row.date >= period.start && row.date <= period.end)
-    const timed = matching.filter((row: AnyRow) => (n(row.distanceKm, 0) || 0) > 0 && (n(row.durationMin, 0) || 0) > 0)
-    const value = metric === 'pace'
-      ? timed.length ? timed.reduce((sum: number, row: AnyRow) => sum + (n(row.durationMin, 0) || 0), 0) / timed.reduce((sum: number, row: AnyRow) => sum + (n(row.distanceKm, 0) || 0), 0) : null
-      : matching.length ? matching.reduce((sum: number, row: AnyRow) => sum + (n(row.distanceKm, 0) || 0), 0) : null
+    const value = matching.length ? matching.reduce((sum: number, row: AnyRow) => sum + (n(row.distanceKm, 0) || 0), 0) : null
     return { label: period.label, value }
   })
   const makeNutritionSeries = () => periods.map(period => {
@@ -751,13 +749,14 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
     const totals = dates.reduce((sum, date) => { const intake = totalNutrition(data, date); sum.kcal += intake.kcal; sum.protein += intake.p; return sum }, { kcal: 0, protein: 0 })
     return { label: period.label, kcal: totals.kcal / dates.length, protein: totals.protein / dates.length }
   })
-  const actualChartPoints = chartMetric === 'nutrition' ? [] : makeActualSeries(chartMetric)
+  const runningPoints = chartMetric === 'run' ? aggregateRunningPeriods(periods, data.endurance.filter((row: AnyRow) => row.type === 'Course').map((row: AnyRow) => ({ date: row.date, distanceKm: n(row.distanceKm), durationMin: n(row.durationMin) }))) : undefined
+  const actualChartPoints = chartMetric === 'nutrition' || chartMetric === 'run' ? [] : makeActualSeries(chartMetric)
   const nutritionPoints = chartMetric === 'nutrition' ? makeNutritionSeries() : undefined
   const chartPoints = chartMetric === 'nutrition' ? [] : actualChartPoints
-  const chartUnit = chartMetric === 'weight' ? 'kg' : chartMetric === 'pace' ? 'min/km' : 'km'
-  const metricLabel = chartMetric === 'nutrition' ? 'Calories & protein' : chartMetric === 'weight' ? 'Weight' : chartMetric === 'run' ? 'Running distance' : chartMetric === 'pace' ? 'Running pace' : 'Swimming distance'
+  const chartUnit = chartMetric === 'weight' ? 'kg' : 'km'
+  const metricLabel = chartMetric === 'nutrition' ? 'Calories & protein' : chartMetric === 'weight' ? 'Weight' : chartMetric === 'run' ? 'Running' : 'Swimming distance'
   const periodLabel = chartMetric === 'nutrition' ? chartPeriod === 'day' ? 'Daily intake · last 7 days' : chartPeriod === 'week' ? 'Daily average · last 6 weeks' : 'Daily average · last 6 months' : chartPeriod === 'day' ? 'Daily · last 7 days' : chartPeriod === 'week' ? 'Weekly · last 6 weeks' : 'Monthly · last 6 months'
-  const chartEmptyMessage = chartMetric === 'nutrition' ? 'No nutrition logs in this period' : chartMetric === 'weight' ? 'No weigh-ins in this period' : chartMetric === 'run' ? 'No runs in this period' : chartMetric === 'pace' ? 'No timed runs in this period' : 'No swims in this period'
+  const chartEmptyMessage = chartMetric === 'nutrition' ? 'No nutrition logs in this period' : chartMetric === 'weight' ? 'No weigh-ins in this period' : chartMetric === 'run' ? 'No runs in this period' : 'No swims in this period'
   const currentPoint = chartPoints.at(-1)?.value ?? null
   const previousPoint = chartPoints.at(-2)?.value ?? null
   const currentNutritionPoint = nutritionPoints?.at(-1)
@@ -765,12 +764,17 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
   const trendDelta = currentPoint !== null && previousPoint !== null ? currentPoint - previousPoint : null
   const nutritionScore = (point?: { kcal: number | null; protein: number | null }) => point?.kcal !== null && point?.kcal !== undefined && point.protein !== null ? Math.hypot((point.kcal - data.goals.calTarget) / Math.max(1, data.goals.calTarget), (point.protein - data.goals.proteinTarget) / Math.max(1, data.goals.proteinTarget)) : null
   const currentNutritionScore = nutritionScore(currentNutritionPoint), previousNutritionScore = nutritionScore(previousNutritionPoint)
-  const trendDirection = chartMetric === 'nutrition' ? currentNutritionScore === null || previousNutritionScore === null ? 'unknown' : Math.abs(currentNutritionScore - previousNutritionScore) < .03 ? 'neutral' : currentNutritionScore < previousNutritionScore ? 'improved' : 'regressed' : trendDelta === null ? 'unknown' : Math.abs(trendDelta) < (chartMetric === 'weight' ? .1 : chartMetric === 'pace' ? .05 : .05) ? 'neutral' : chartMetric === 'weight' ? Math.abs(previousPoint! - data.goals.targetWeight) > Math.abs(currentPoint - data.goals.targetWeight) ? 'improved' : 'regressed' : chartMetric === 'pace' ? trendDelta < 0 ? 'improved' : 'regressed' : trendDelta > 0 ? 'improved' : 'regressed'
+  const trendDirection = chartMetric === 'run' ? 'neutral' : chartMetric === 'nutrition' ? currentNutritionScore === null || previousNutritionScore === null ? 'unknown' : Math.abs(currentNutritionScore - previousNutritionScore) < .03 ? 'neutral' : currentNutritionScore < previousNutritionScore ? 'improved' : 'regressed' : trendDelta === null ? 'unknown' : Math.abs(trendDelta) < .1 ? 'neutral' : chartMetric === 'weight' ? Math.abs(previousPoint! - data.goals.targetWeight) > Math.abs(currentPoint - data.goals.targetWeight) ? 'improved' : 'regressed' : trendDelta > 0 ? 'improved' : 'regressed'
   const trendTone = trendDirection === 'improved' ? 'text-[var(--accent)] border-[var(--accent)]/20 bg-[var(--accent)]/[.06]' : trendDirection === 'regressed' ? 'text-amber-200 border-amber-300/20 bg-amber-300/[.06]' : 'text-zinc-400 border-white/8 bg-white/[.025]'
-  const trendLabel = trendDirection === 'improved' ? 'Improved' : trendDirection === 'regressed' ? 'Regressed' : trendDirection === 'neutral' ? 'No change' : 'Not enough data'
+  const trendLabel = chartMetric === 'run' ? 'Distance + pace' : trendDirection === 'improved' ? 'Improved' : trendDirection === 'regressed' ? 'Regressed' : trendDirection === 'neutral' ? 'No change' : 'Not enough data'
   const nutritionDeltaKcal = currentNutritionPoint?.kcal !== null && currentNutritionPoint?.kcal !== undefined && previousNutritionPoint?.kcal !== null && previousNutritionPoint?.kcal !== undefined ? currentNutritionPoint.kcal - previousNutritionPoint.kcal : null
   const nutritionDeltaProtein = currentNutritionPoint?.protein !== null && currentNutritionPoint?.protein !== undefined && previousNutritionPoint?.protein !== null && previousNutritionPoint?.protein !== undefined ? currentNutritionPoint.protein - previousNutritionPoint.protein : null
-  const deltaLabel = chartMetric === 'nutrition' ? nutritionDeltaKcal === null || nutritionDeltaProtein === null ? 'Log two comparable periods to see a trend' : `${nutritionDeltaKcal > 0 ? '+' : ''}${fmt(nutritionDeltaKcal, 0)} kcal · ${nutritionDeltaProtein > 0 ? '+' : ''}${fmt(nutritionDeltaProtein, 0)} g protein vs previous ${chartPeriod}` : trendDelta === null ? 'Log two comparable periods to see a trend' : `${trendDelta > 0 ? '+' : ''}${fmt(trendDelta, chartMetric === 'weight' ? 1 : 2)} ${chartUnit} vs previous ${chartPeriod}`
+  const currentRunningPoint = runningPoints?.at(-1), previousRunningPoint = runningPoints?.at(-2)
+  const runningDistanceDelta = currentRunningPoint?.distanceKm !== null && currentRunningPoint?.distanceKm !== undefined && previousRunningPoint?.distanceKm !== null && previousRunningPoint?.distanceKm !== undefined ? currentRunningPoint.distanceKm - previousRunningPoint.distanceKm : null
+  const runningPaceDelta = currentRunningPoint?.paceMinPerKm !== null && currentRunningPoint?.paceMinPerKm !== undefined && previousRunningPoint?.paceMinPerKm !== null && previousRunningPoint?.paceMinPerKm !== undefined ? currentRunningPoint.paceMinPerKm - previousRunningPoint.paceMinPerKm : null
+  const paceChangeText = (delta: number) => { const seconds = Math.round(Math.abs(delta) * 60), paceChange = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; return delta < 0 ? `pace faster by ${paceChange}/km` : delta > 0 ? `pace slower by ${paceChange}/km` : 'pace unchanged' }
+  const runningDeltaLabel = !currentRunningPoint || !previousRunningPoint ? 'Log two periods to compare running distance and pace' : `${runningDistanceDelta === null ? 'Distance unavailable' : `${runningDistanceDelta > 0 ? '+' : ''}${fmt(runningDistanceDelta, 2)} km`} · ${runningPaceDelta === null ? 'pace needs timed runs' : paceChangeText(runningPaceDelta)} vs previous ${chartPeriod}`
+  const deltaLabel = chartMetric === 'run' ? runningDeltaLabel : chartMetric === 'nutrition' ? nutritionDeltaKcal === null || nutritionDeltaProtein === null ? 'Log two comparable periods to see a trend' : `${nutritionDeltaKcal > 0 ? '+' : ''}${fmt(nutritionDeltaKcal, 0)} kcal · ${nutritionDeltaProtein > 0 ? '+' : ''}${fmt(nutritionDeltaProtein, 0)} g protein vs previous ${chartPeriod}` : trendDelta === null ? 'Log two comparable periods to see a trend' : `${trendDelta > 0 ? '+' : ''}${fmt(trendDelta, chartMetric === 'weight' ? 1 : 2)} ${chartUnit} vs previous ${chartPeriod}`
   const milestoneStates = milestones.map(goal => ({ ...goal, done: Boolean(goal.achieved || data.goalHistory[goal.key]?.achieved) }))
   const activeMilestones = milestoneStates.filter(goal => !goal.done && goal.pct > 0)
   const nextMilestone = milestoneStates.find(goal => !goal.done && goal.pct === 0)
@@ -782,9 +786,9 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
       <div className="mt-6 grid grid-cols-2 gap-3"><div className="rounded-2xl border border-white/8 bg-black/20 p-4"><div className="text-xs text-zinc-400">Sessions completed</div><div className="mt-2 text-3xl font-black">{completedSessions}<span className="text-lg text-zinc-500">/{plannedSessions.length}</span></div><div className="mt-1 text-xs text-zinc-500">Planned sessions this week</div></div><div className="rounded-2xl border border-white/8 bg-black/20 p-4"><div className="text-xs text-zinc-400">Sessions in progress</div><div className="mt-2 text-3xl font-black">{inProgressSessions}</div><div className="mt-1 text-xs text-zinc-500">Partially logged strength sessions</div></div></div>
     </section>
     <section className={cn(cardClass('!p-5 sm:!p-6'), 'overflow-hidden')}>
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">Progress trend</h2><p className="mt-1 text-xs text-zinc-500">{metricLabel} · {periodLabel}</p></div><div className="relative"><label className="sr-only" htmlFor="progress-chart-metric">Choose graph</label><select id="progress-chart-metric" value={chartMetric} onChange={event => setChartMetric(event.target.value as 'weight' | 'run' | 'pace' | 'swim' | 'nutrition')} className="h-6 w-[102px] min-w-[102px] appearance-none rounded-full border border-white/8 bg-white/[.04] px-2 pr-6 text-[9px] font-bold uppercase tracking-[.04em] text-zinc-300 outline-none focus:border-[var(--accent)]/40" style={{ backgroundImage: 'none', fontSize: 9 }}><option value="weight">Weight</option><option value="run">Running distance</option><option value="pace">Running pace</option><option value="swim">Swimming</option><option value="nutrition">Nutrition</option></select><ChevronDown size={9} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500"/></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">Progress trend</h2><p className="mt-1 text-xs text-zinc-500">{metricLabel} · {periodLabel}</p></div><div className="relative"><label className="sr-only" htmlFor="progress-chart-metric">Choose graph</label><select id="progress-chart-metric" value={chartMetric} onChange={event => setChartMetric(event.target.value as 'weight' | 'run' | 'swim' | 'nutrition')} className="h-6 w-[102px] min-w-[102px] appearance-none rounded-full border border-white/8 bg-white/[.04] px-2 pr-6 text-[9px] font-bold uppercase tracking-[.04em] text-zinc-300 outline-none focus:border-[var(--accent)]/40" style={{ backgroundImage: 'none', fontSize: 9 }}><option value="weight">Weight</option><option value="run">Running</option><option value="swim">Swimming</option><option value="nutrition">Nutrition</option></select><ChevronDown size={9} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500"/></div></div>
       <div className="mt-3"><div className="inline-flex rounded-lg border border-white/7 bg-black/20 p-0.5" role="group" aria-label="Choose chart period">{(['day', 'week', 'month'] as const).map(period => <button key={period} type="button" aria-pressed={chartPeriod === period} onClick={() => setChartPeriod(period)} className={cn('rounded-md px-1.5 py-0.5 text-[6px] font-bold uppercase tracking-[.06em] transition', chartPeriod === period ? 'bg-white/[.08] text-zinc-100' : 'text-zinc-600 hover:text-zinc-300')} style={{ fontSize: 9 }}>{period}</button>)}</div></div>
-      <div className="mt-2"><GoalsProgressChart points={chartPoints} unit={chartUnit} emptyMessage={chartEmptyMessage} target={chartMetric === 'weight' ? data.goals.targetWeight : undefined} nutritionPoints={nutritionPoints}/></div>
+      <div className="mt-2">{runningPoints ? <RunningProgressChart points={runningPoints} emptyMessage={chartEmptyMessage}/> : <GoalsProgressChart points={chartPoints} unit={chartUnit} emptyMessage={chartEmptyMessage} target={chartMetric === 'weight' ? data.goals.targetWeight : undefined} nutritionPoints={nutritionPoints}/>}</div>
       <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-white/[.06] pt-3"><span className={cn('inline-flex rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide', trendTone)}>{chartMetric === 'nutrition' && trendDirection === 'improved' ? 'Closer to targets' : chartMetric === 'nutrition' && trendDirection === 'regressed' ? 'Further from targets' : trendLabel}</span><p className="text-xs text-zinc-500">{deltaLabel}</p></div>
       {chartMetric === 'weight' && <details className="group mt-4 rounded-xl border border-white/7 bg-white/[.02]"><summary className="cursor-pointer list-none px-3 py-2 text-xs font-bold text-zinc-400">Edit weight targets <span className="float-right text-zinc-600 group-open:rotate-180">⌄</span></summary><div className="grid gap-3 border-t border-white/7 p-3 sm:grid-cols-3"><Field label="Starting weight (kg)" value={goals.startWeight} onChange={value => setGoals(current => ({ ...current, startWeight: Number(value) }))} step="0.1"/><Field label="Milestone weight (kg)" value={goals.midWeight} onChange={value => setGoals(current => ({ ...current, midWeight: Number(value) }))} step="0.1"/><Field label="Target weight (kg)" value={goals.targetWeight} onChange={value => setGoals(current => ({ ...current, targetWeight: Number(value) }))} step="0.1"/><div className="sm:col-span-3"><PrimaryButton onClick={saveGoals}><Save size={14}/> Save weight targets</PrimaryButton></div></div></details>}
     </section>
@@ -803,27 +807,60 @@ function TrainingProgressView({ data }: { data: AnyRow }) {
     <section className={cardClass()}><SectionHead title="Reinforcement progression" meta="History by exercise"/>{Object.keys(reinforcementGroups).length ? <div className="mt-3 space-y-2">{Object.entries(reinforcementGroups).map(([key, unsorted]) => { const rows = [...unsorted].sort((a, b) => a.date.localeCompare(b.date) || a.set - b.set), last = rows.at(-1)!, def = Object.values(REINFORCEMENT_DEFS).find((item: AnyRow) => item.key === key) as AnyRow | undefined, recommendation = def ? reinforcementRecommendation(data, def) : null; return <div key={key} className="rounded-xl border border-white/7 bg-white/[.02] p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><div className="truncate text-sm font-bold">{def?.name || last.exercise}</div><div className="mt-1 text-[11px] text-zinc-500">{def?.zone || 'Reinforcement'} · {rows.length} sets</div></div><Badge>{formatDate(last.date)}</Badge></div><div className="mt-3 grid grid-cols-3 gap-2 text-xs"><div><div className="text-[10px] text-zinc-600">Latest</div><b>{last.actualValue} {last.mode === 'time' ? 'sec' : last.mode === 'test' ? 'test' : 'reps'}</b></div><div><div className="text-[10px] text-zinc-600">Resistance</div><b>{fmt(last.resistance)} kg</b></div><div><div className="text-[10px] text-zinc-600">Pain</div><b>{fmt(last.pain)}/10</b></div></div>{recommendation && <div className="mt-2 text-[11px] text-zinc-400">Next: <b className="text-[var(--accent)]">{recommendation.symbol} {recommendation.mode === 'load' ? `${fmt(recommendation.value)} kg` : recommendation.mode === 'test' ? 'repeat test' : `${recommendation.value} ${last.mode === 'time' ? 'sec' : 'reps'}`}</b></div>}<div className="mt-2 flex flex-wrap gap-1">{rows.slice(-6).map(row => <span key={row.id} className="rounded-lg bg-white/[.04] px-2 py-1 text-[10px] text-zinc-500">{formatDate(row.date)} · {row.actualValue}{row.mode === 'time' ? 's' : ''}</span>)}</div></div>})}</div> : <Empty text="No reinforcement data yet. Log sessions in Training to build your history."/>}</section>
   </div>
 }
-function GoalsProgressChart({ points, unit, emptyMessage, target, nutritionPoints }: { points: Array<{ label: string; value: number | null }>; unit: 'kg' | 'km' | 'min/km'; emptyMessage: string; target?: number; nutritionPoints?: Array<{ label: string; kcal: number | null; protein: number | null }> }) {
+function RunningProgressChart({ points, emptyMessage }: { points: Array<{ label: string; distanceKm: number | null; paceMinPerKm: number | null }>; emptyMessage: string }) {
+  const width = 600, height = 280, left = 48, right = 48, top = 20, bottom = 38
+  const plotHeight = height - top - bottom
+  const x = (index: number) => left + index * (width - left - right) / Math.max(1, points.length - 1)
+  const distances = points.map(point => point.distanceKm).filter((value): value is number => value !== null && Number.isFinite(value))
+  const paces = points.map(point => point.paceMinPerKm).filter((value): value is number => value !== null && Number.isFinite(value))
+  const hasData = distances.length > 0 || paces.length > 0
+  const distanceMax = Math.max(1, Math.ceil(Math.max(...distances, 0) * 1.2 * 2) / 2)
+  const paceLow = paces.length ? Math.max(0, Math.floor((Math.min(...paces) - .25) * 2) / 2) : 4
+  let paceHigh = paces.length ? Math.ceil((Math.max(...paces) + .25) * 2) / 2 : 8
+  if (paceHigh - paceLow < .5) paceHigh = paceLow + .5
+  const yDistance = (value: number) => top + (distanceMax - value) * plotHeight / distanceMax
+  const yPace = (value: number) => top + (value - paceLow) * plotHeight / (paceHigh - paceLow)
+  const pathFor = (key: 'distanceKm' | 'paceMinPerKm', y: (value: number) => number) => {
+    let path = '', previous: { x: number; y: number } | null = null
+    points.forEach((point, index) => {
+      const value = point[key]
+      if (value === null || !Number.isFinite(value)) { previous = null; return }
+      const current = { x: x(index), y: y(value) }
+      if (!previous) path += `M ${current.x} ${current.y}`
+      else { const controlX = (previous.x + current.x) / 2; path += ` C ${controlX} ${previous.y}, ${controlX} ${current.y}, ${current.x} ${current.y}` }
+      previous = current
+    })
+    return path
+  }
+  const distancePath = pathFor('distanceKm', yDistance), pacePath = pathFor('paceMinPerKm', yPace)
+  const formatPace = (value: number) => { const seconds = Math.round(value * 60); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` }
+  const ticks = [0, .5, 1]
+  return <div>
+    <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-zinc-400"><span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"/>Distance · km</span><span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-cyan-300"/>Pace · min/km</span></div>
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible" role="img" aria-label="Running distance and pace progression, each with its own scale">
+      {ticks.map(fraction => { const distance = distanceMax * (1 - fraction), pace = paceLow + (paceHigh - paceLow) * fraction, y = top + plotHeight * fraction; return <g key={fraction}><line x1={left} x2={width - right} y1={y} y2={y} stroke="rgba(255,255,255,.075)"/><text x={left - 8} y={y + 3} textAnchor="end" fontSize="11" fill="#caff4a">{fmt(distance, 1)}</text><text x={width - right + 8} y={y + 3} fontSize="11" fill="#67e8f9">{formatPace(pace)}</text></g> })}
+      {distances.length > 0 && <path d={distancePath} fill="none" stroke="#caff4a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>}
+      {paces.length > 0 && <path d={pacePath} fill="none" stroke="#67e8f9" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>}
+      {points.map((point, index) => <g key={point.label}>{point.distanceKm !== null && <><circle cx={x(index)} cy={yDistance(point.distanceKm)} r="3.5" fill="#caff4a"/><title>{`${point.label}: ${fmt(point.distanceKm, 2)} km running distance`}</title></>}{point.paceMinPerKm !== null && <><circle cx={x(index)} cy={yPace(point.paceMinPerKm)} r="3.5" fill="#67e8f9"/><title>{`${point.label}: ${formatPace(point.paceMinPerKm)} min/km pace`}</title></>}<text x={x(index)} y={height - 7} textAnchor="middle" fontSize="11" fill={index === points.length - 1 ? '#caff4a' : '#717a84'}>{point.label}</text></g>)}
+      {!hasData && <text x={width / 2} y={height / 2 - 4} textAnchor="middle" fontSize="12" fill="#717a84">{emptyMessage}</text>}
+    </svg>
+  </div>
+}
+
+function GoalsProgressChart({ points, unit, emptyMessage, target, nutritionPoints }: { points: Array<{ label: string; value: number | null }>; unit: 'kg' | 'km'; emptyMessage: string; target?: number; nutritionPoints?: Array<{ label: string; kcal: number | null; protein: number | null }> }) {
   if (nutritionPoints) return <NutritionProgressChart points={nutritionPoints} emptyMessage={emptyMessage}/>
   const values = points.map(point => point.value).filter((value): value is number => value !== null && Number.isFinite(value))
   const hasData = values.length > 0
-  let low = 0, high = unit === 'kg' ? 100 : unit === 'min/km' ? 10 : 5
+  let low = 0, high = unit === 'kg' ? 100 : 5
   if (hasData && unit === 'kg') {
     const minValue = Math.min(...values, ...(target ? [target] : [])), maxValue = Math.max(...values, ...(target ? [target] : []))
     low = Math.max(0, Math.floor((minValue - 2) / 5) * 5)
     high = Math.ceil((maxValue + 2) / 5) * 5
     if (high - low < 10) high = low + 10
-  } else if (hasData && unit === 'min/km') {
-    const minValue = Math.min(...values), maxValue = Math.max(...values)
-    low = Math.max(0, Math.floor((minValue - .2) * 5) / 5)
-    high = Math.ceil((maxValue + .2) * 5) / 5
-    if (high - low < .6) { low = Math.max(0, low - .2); high += .2 }
   } else if (hasData) high = Math.max(1, Math.ceil(Math.max(...values) * 1.25 * 2) / 2)
   const width = 600, height = 280, left = 44, right = 18, top = 20, bottom = 38
   const x = (index: number) => left + index * (width - left - right) / Math.max(1, points.length - 1)
-  const y = (value: number) => unit === 'min/km'
-    ? top + (value - low) * (height - top - bottom) / (high - low || 1)
-    : top + (high - value) * (height - top - bottom) / (high - low || 1)
+  const y = (value: number) => top + (high - value) * (height - top - bottom) / (high - low || 1)
   const valid = points.map((point, index) => point.value === null ? null : { x: x(index), y: y(point.value), value: point.value }).filter((point): point is { x: number; y: number; value: number } => point !== null)
   const linePath = valid.reduce((path, point, index) => {
     if (index === 0) return `M ${point.x} ${point.y}`
@@ -831,12 +868,12 @@ function GoalsProgressChart({ points, unit, emptyMessage, target, nutritionPoint
     return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`
   }, '')
   const areaPath = valid.length ? `${linePath} L ${valid[valid.length - 1].x} ${height - bottom} L ${valid[0].x} ${height - bottom} Z` : ''
-  return <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible" role="img" aria-label={`${unit === 'kg' ? 'Weight' : unit === 'min/km' ? 'Running pace in minutes per kilometer' : 'Distance'} progression over the selected periods`}>
+  return <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible" role="img" aria-label={`${unit === 'kg' ? 'Weight' : 'Distance'} progression over the selected periods`}>
     <defs><linearGradient id="progress-line" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stopColor="#caff4a"/><stop offset="100%" stopColor="#66d9d0"/></linearGradient><linearGradient id="progress-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#caff4a" stopOpacity=".17"/><stop offset="100%" stopColor="#66d9d0" stopOpacity="0"/></linearGradient></defs>
-    {[0, .5, 1].map(fraction => { const value = low + (high - low) * fraction, yy = y(value); return <g key={fraction}><line x1={left} x2={width - right} y1={yy} y2={yy} stroke="rgba(255,255,255,.075)"/><text x={left - 8} y={yy + 3} textAnchor="end" fontSize="11" fill="#717a84">{fmt(value, unit === 'kg' ? 0 : unit === 'min/km' ? 2 : 1)}</text></g> })}
+    {[0, .5, 1].map(fraction => { const value = low + (high - low) * fraction, yy = y(value); return <g key={fraction}><line x1={left} x2={width - right} y1={yy} y2={yy} stroke="rgba(255,255,255,.075)"/><text x={left - 8} y={yy + 3} textAnchor="end" fontSize="11" fill="#717a84">{fmt(value, unit === 'kg' ? 0 : 1)}</text></g> })}
     {target !== undefined && target >= low && target <= high && <><line x1={left} x2={width - right} y1={y(target)} y2={y(target)} stroke="rgba(202,255,74,.4)" strokeDasharray="5 5"/><text x={width - right} y={y(target) - 6} textAnchor="end" fontSize="11" fill="#caff4a">Target {fmt(target)} kg</text></>}
     {hasData && <><path d={areaPath} fill="url(#progress-area)"/><path d={linePath} fill="none" stroke="url(#progress-line)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/></>}
-    {points.map((point, index) => <g key={point.label}>{point.value !== null && <><circle cx={x(index)} cy={y(point.value)} r={index === points.length - 1 ? 10 : 7} fill="#caff4a" opacity={index === points.length - 1 ? '.16' : '.1'}/><circle cx={x(index)} cy={y(point.value)} r={index === points.length - 1 ? 4.5 : 3.5} fill={index === points.length - 1 ? '#f2ffb5' : '#caff4a'}/><title>{`${point.label}: ${fmt(point.value, unit === 'min/km' ? 2 : 1)} ${unit}`}</title></>}<text x={x(index)} y={height - 7} textAnchor="middle" fontSize="11" fill={index === points.length - 1 ? '#caff4a' : '#717a84'}>{point.label}</text></g>)}
+    {points.map((point, index) => <g key={point.label}>{point.value !== null && <><circle cx={x(index)} cy={y(point.value)} r={index === points.length - 1 ? 10 : 7} fill="#caff4a" opacity={index === points.length - 1 ? '.16' : '.1'}/><circle cx={x(index)} cy={y(point.value)} r={index === points.length - 1 ? 4.5 : 3.5} fill={index === points.length - 1 ? '#f2ffb5' : '#caff4a'}/><title>{`${point.label}: ${fmt(point.value, 1)} ${unit}`}</title></>}<text x={x(index)} y={height - 7} textAnchor="middle" fontSize="11" fill={index === points.length - 1 ? '#caff4a' : '#717a84'}>{point.label}</text></g>)}
     {!hasData && <text x={width / 2} y={height / 2 - 4} textAnchor="middle" fontSize="12" fill="#717a84">{emptyMessage}</text>}
   </svg>
 }
@@ -866,11 +903,11 @@ function NutritionProgressChart({ points, emptyMessage }: { points: Array<{ labe
   const caloriePath = linePath('kcal', yCalories), proteinPath = linePath('protein', yProtein)
   const ticks = [0, .5, 1]
   return <div>
-    <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-zinc-400"><span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-amber-300"/>Calories · kcal/day</span><span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-rose-300"/>Protein · g/day</span></div>
+    <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-zinc-400"><span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"/>Calories · kcal/day</span><span className="inline-flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-cyan-300"/>Protein · g/day</span></div>
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible" role="img" aria-label="Calories and protein intake progression, each with its own scale">
-      {ticks.map(fraction => { const y = top + plotHeight * (1 - fraction), kcal = calorieMax * fraction, protein = proteinMax * fraction; return <g key={fraction}><line x1={left} x2={width - right} y1={y} y2={y} stroke="rgba(255,255,255,.075)"/><text x={left - 8} y={y + 3} textAnchor="end" fontSize="11" fill="#fbbf24">{fmt(kcal, 0)}</text><text x={width - right + 8} y={y + 3} fontSize="11" fill="#fb7185">{fmt(protein, 0)}</text></g> })}
-      {hasData && <><path d={caloriePath} fill="none" stroke="#fbbf24" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/><path d={proteinPath} fill="none" stroke="#fb7185" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/></>}
-      {points.map((point, index) => <g key={point.label}>{point.kcal !== null && <><circle cx={x(index)} cy={yCalories(point.kcal)} r="3.5" fill="#fbbf24"/><title>{`${point.label}: ${fmt(point.kcal, 0)} kcal/day`}</title></>}{point.protein !== null && <><circle cx={x(index)} cy={yProtein(point.protein)} r="3.5" fill="#fb7185"/><title>{`${point.label}: ${fmt(point.protein, 0)} g protein/day`}</title></>}<text x={x(index)} y={height - 7} textAnchor="middle" fontSize="11" fill={index === points.length - 1 ? '#caff4a' : '#717a84'}>{point.label}</text></g>)}
+      {ticks.map(fraction => { const y = top + plotHeight * (1 - fraction), kcal = calorieMax * fraction, protein = proteinMax * fraction; return <g key={fraction}><line x1={left} x2={width - right} y1={y} y2={y} stroke="rgba(255,255,255,.075)"/><text x={left - 8} y={y + 3} textAnchor="end" fontSize="11" fill="#caff4a">{fmt(kcal, 0)}</text><text x={width - right + 8} y={y + 3} fontSize="11" fill="#67e8f9">{fmt(protein, 0)}</text></g> })}
+      {hasData && <><path d={caloriePath} fill="none" stroke="#caff4a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/><path d={proteinPath} fill="none" stroke="#67e8f9" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/></>}
+      {points.map((point, index) => <g key={point.label}>{point.kcal !== null && <><circle cx={x(index)} cy={yCalories(point.kcal)} r="3.5" fill="#caff4a"/><title>{`${point.label}: ${fmt(point.kcal, 0)} kcal/day`}</title></>}{point.protein !== null && <><circle cx={x(index)} cy={yProtein(point.protein)} r="3.5" fill="#67e8f9"/><title>{`${point.label}: ${fmt(point.protein, 0)} g protein/day`}</title></>}<text x={x(index)} y={height - 7} textAnchor="middle" fontSize="11" fill={index === points.length - 1 ? '#caff4a' : '#717a84'}>{point.label}</text></g>)}
       {!hasData && <text x={width / 2} y={height / 2 - 4} textAnchor="middle" fontSize="12" fill="#717a84">{emptyMessage}</text>}
     </svg>
   </div>

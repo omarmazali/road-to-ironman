@@ -7,10 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "npm run test:training && npm run test:export && npm run test:nutrition",
+    "test": "npm run test:training && npm run test:export && npm run test:nutrition && npm run test:running",
     "test:export": "node --experimental-strip-types --test tests/export-roundtrip.test.mjs",
     "test:training": "node --experimental-strip-types --test tests/training-consistency.test.mjs",
-    "test:nutrition": "node --experimental-strip-types --test tests/nutrition.test.mjs"
+    "test:nutrition": "node --experimental-strip-types --test tests/nutrition.test.mjs",
+    "test:running": "node --experimental-strip-types --test tests/running-series.test.mjs"
   },
   "dependencies": {
     "lucide-react": "1.48.0",
