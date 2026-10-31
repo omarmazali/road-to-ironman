@@ -29,3 +29,28 @@ test('a full strength session counts as completed and leaves no in-progress sess
   assert.equal(complete, true)
   assert.deepEqual(counts, { completed: 1, inProgress: 0 })
 })
+
+test('an endurance session completes only when its type and date match the plan', () => {
+  const endurancePlan = [
+    { date: '2026-10-25', kind: 'endurance', activity: 'Natation' },
+    { date: '2026-10-26', kind: 'endurance', activity: 'Course' },
+  ]
+  const logs = [
+    { date: '2026-10-25', type: 'Course' },
+    { date: '2026-10-26', type: 'Natation' },
+    { date: '2026-10-26', type: 'Course' },
+  ]
+
+  assert.deepEqual(summarizePlannedSessions(endurancePlan, [], logs, () => false), { completed: 1, inProgress: 0 })
+})
+
+test('unplanned logs and duplicate entries do not inflate planned session totals', () => {
+  const onePlannedRun = [{ date: '2026-10-25', kind: 'endurance', activity: 'Course' }]
+  const logs = [
+    { date: '2026-10-24', type: 'Course' },
+    { date: '2026-10-25', type: 'Course' },
+    { date: '2026-10-25', type: 'Course' },
+  ]
+
+  assert.deepEqual(summarizePlannedSessions(onePlannedRun, [], logs, () => false), { completed: 1, inProgress: 0 })
+})

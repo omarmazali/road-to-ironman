@@ -6,9 +6,11 @@ import {
   FileUp, Flag, Flame, History, LayoutDashboard, Plus, RefreshCw, Salad, Save, Sparkles,
   Target, Trash2, Waves, Weight, Wheat, X, Pencil,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Brand } from '@/components/brand'
 import { CYCLE, LOADS, PROGRAM_DEFS, REINFORCEMENT_DEFS, REINFORCEMENT_PLAN, START_DATE } from '@/lib/program'
 import { createExportPayload } from '@/lib/export-data'
+import { calculateIngredientNutrition } from '@/lib/nutrition'
 import { isStrengthSessionComplete as isFullStrengthSessionComplete, summarizePlannedSessions } from '@/lib/training-consistency'
 
 const STORAGE_KEY = 'roadToTriathlonV3'
@@ -51,6 +53,9 @@ const DEFAULT_FOODS: AnyRow[] = [
   { id: 'food-almonds', name: 'Amandes', kcal100: 579, p100: 21.2, c100: 21.6, f100: 49.9 },
 ]
 
+// Persisted state is a versioned JSON schema with legacy keys; this alias keeps
+// normalization explicit while the data migrates to narrower domain types.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = Record<string, any>
 type Mutate = (fn: (draft: AnyRow) => void) => void
 
@@ -71,17 +76,17 @@ function mondayOf(date: string) {
 function formatDate(date: string, options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' }) {
   return new Date(`${date}T12:00:00`).toLocaleDateString('fr-FR', options)
 }
-function n(value: any, fallback: number | null = null): number | null {
+function n(value: unknown, fallback: number | null = null): number | null {
   if (value === null || value === undefined || value === '') return fallback
   const num = Number(String(value).replace(',', '.'))
   return Number.isFinite(num) ? num : fallback
 }
-function fmt(value: any, digits = 1) {
+function fmt(value: unknown, digits = 1) {
   const num = n(value)
   return num === null ? '—' : num.toFixed(digits).replace('.', ',')
 }
 function uid() { return `id_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}` }
-function safeSlug(value: any) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') }
+function safeSlug(value: unknown) { return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') }
 const legacyExerciseAliases: Record<string, string> = {
   chest_press_developpe_couche: 'bench_press_horizontal',
   tirage_vertical_prise_neutre: 'neutral_grip_lat_pulldown',
@@ -164,14 +169,7 @@ function normalizeState(source: AnyRow): AnyRow {
   return s
 }
 function calculateIngredients(ingredients: AnyRow[] = []) {
-  return ingredients.reduce((total, item) => {
-    const grams = Math.max(0, n(item.grams, 0) || 0) / 100
-    total.kcal += grams * (n(item.kcal100, 0) || 0)
-    total.p += grams * (n(item.p100, 0) || 0)
-    total.c += grams * (n(item.c100, 0) || 0)
-    total.f += grams * (n(item.f100, 0) || 0)
-    return total
-  }, { kcal: 0, p: 0, c: 0, f: 0 })
+  return calculateIngredientNutrition(ingredients)
 }
 function mealNutrition(meal: AnyRow) {
   if (Array.isArray(meal.ingredients) && meal.ingredients.length) return calculateIngredients(meal.ingredients)
@@ -272,7 +270,7 @@ function totalNutrition(data: AnyRow, date: string) {
   }, { kcal: 0, p: 0, c: 0, f: 0 })
 }
 function recordedWeights(data: AnyRow) {
-  return Object.entries(data.daily).filter(([, row]: [string, any]) => n(row.weight) !== null).map(([date, row]: [string, any]) => ({ date, weight: n(row.weight) as number })).sort((a, b) => a.date.localeCompare(b.date))
+  return (Object.entries(data.daily) as Array<[string, AnyRow]>).filter(([, row]) => n(row.weight) !== null).map(([date, row]) => ({ date, weight: n(row.weight) as number })).sort((a, b) => a.date.localeCompare(b.date))
 }
 function weeklyAverages(data: AnyRow) {
   const groups: Record<string, number[]> = {}
@@ -291,6 +289,8 @@ export default function AppShell() {
   const [toast, setToast] = useState('')
   const navRef = useRef<HTMLDivElement>(null)
 
+  // Hydrate the external localStorage store after the client mounts.
+  /* eslint-disable react-hooks/set-state-in-effect -- client hydration reads an external browser store */
   useEffect(() => {
     const localToday = todayISO()
     setCurrentDay(localToday)
@@ -301,6 +301,7 @@ export default function AppShell() {
     } catch (error) { console.error('Could not load saved training data', error) }
     setHydrated(true)
   }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data, hydrated])
   useEffect(() => {
     const node = navRef.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`)
@@ -379,7 +380,7 @@ export default function AppShell() {
             {tab === 'dashboard' && <DashboardView data={data} mutate={mutate} setTab={setTab} setDate={setSelectedDate} notify={notify} />}
             {tab === 'training' && <TrainingView data={data} mutate={mutate} date={selectedDate} setDate={setSelectedDate} notify={notify} />}
             {tab === 'nutrition' && <NutritionView data={data} mutate={mutate} date={selectedDate} setDate={setSelectedDate} notify={notify} />}
-            {tab === 'goals' && <><GoalsView data={data} mutate={mutate} notify={notify} /><TrainingProgressView data={data}/></>}
+            {tab === 'goals' && <><GoalsView key={JSON.stringify(data.goals)} data={data} mutate={mutate} notify={notify} /><TrainingProgressView data={data}/></>}
             {tab === 'history' && <HistoryView data={data} mutate={mutate} notify={notify} resetData={resetData} exportData={exportData} />}
           </>}
         </main>
@@ -393,10 +394,10 @@ export default function AppShell() {
 function SectionHead({ title, meta, action }: { title: string; meta?: string; action?: ReactNode }) {
   return <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-lg font-black tracking-[-.02em]">{title}</h2>{meta && <div className="mt-1 text-[11px] font-bold uppercase tracking-[.15em] text-zinc-600">{meta}</div>}</div>{action}</div>
 }
-function StatCard({ label, value, meta, icon: Icon, accent = 'bg-[var(--accent)]/15 text-[var(--accent)]' }: { label: string; value: string; meta: string; icon: any; accent?: string }) {
+function StatCard({ label, value, meta, icon: Icon, accent = 'bg-[var(--accent)]/15 text-[var(--accent)]' }: { label: string; value: string; meta: string; icon: LucideIcon; accent?: string }) {
   return <div className="glass rounded-2xl p-4"><div className="flex items-center justify-between gap-2"><div className="text-[10px] font-semibold uppercase tracking-[.17em] text-zinc-500">{label}</div><div className={cn('grid h-9 w-9 place-items-center rounded-xl', accent)}><Icon size={16}/></div></div><div className="mt-4 text-2xl font-black tracking-[-.03em]">{value}</div><div className="mt-1 text-xs text-zinc-500">{meta}</div></div>
 }
-function Field({ label, value, onChange, type = 'number', placeholder, step, min, max, disabled, wide = false, labelClassName }: { label: string; value: any; onChange: (value: string) => void; type?: string; placeholder?: string; step?: string | number; min?: number; max?: number; disabled?: boolean; wide?: boolean; labelClassName?: string }) {
+function Field({ label, value, onChange, type = 'number', placeholder, step, min, max, disabled, wide = false, labelClassName }: { label: string; value: string | number | null | undefined; onChange: (value: string) => void; type?: string; placeholder?: string; step?: string | number; min?: number; max?: number; disabled?: boolean; wide?: boolean; labelClassName?: string }) {
   return <label className={cn('block min-w-0', wide && 'sm:col-span-2')}><span className={cn('mb-1.5 block text-[10px] font-bold uppercase tracking-[.15em] text-zinc-600', labelClassName)}>{label}</span><input type={type} value={value ?? ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} step={step} min={min} max={max} disabled={disabled} className="h-11 w-full min-w-0 rounded-xl border border-white/8 bg-black/20 px-3 text-sm text-white placeholder:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"/></label>
 }
 function PrimaryButton({ children, onClick, disabled, secondary = false, danger = false, type = 'button' }: { children: ReactNode; onClick?: () => void; disabled?: boolean; secondary?: boolean; danger?: boolean; type?: 'button' | 'submit' }) {
@@ -418,8 +419,9 @@ function DashboardView({ data, mutate, setTab, setDate, notify }: { data: AnyRow
   const lastWeight = weights.at(-1)?.weight, weekAverage = weekEntries.length ? weekEntries.reduce((a, b) => a + b.weight, 0) / weekEntries.length : weeklyRows.at(-1)?.average ?? null
   const totals = totalNutrition(data, today), plan = planForDate(today)
   const [form, setForm] = useState({ weight: '', sleep: '', shoulder: '', ankle: '', back: '', notes: '' })
+  // Reset the local draft when a saved/imported check-in changes.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setForm({ weight: daily.weight ?? '', sleep: daily.sleep ?? '', shoulder: daily.shoulder ?? '', ankle: daily.ankle ?? '', back: daily.back ?? '', notes: daily.notes || '' }), [today, daily.weight, daily.sleep, daily.shoulder, daily.ankle, daily.back, daily.notes])
-  const progress = Math.max(0, Math.min(100, (((weekAverage ?? data.goals.startWeight) - data.goals.startWeight) / Math.max(1, data.goals.targetWeight - data.goals.startWeight)) * 100))
   const saveCheckin = () => {
     if (daily.saved) { notify('Today’s check-in is already locked'); return }
     mutate(d => { d.daily[today] = { ...(d.daily[today] || {}), weight: n(form.weight), sleep: n(form.sleep), shoulder: n(form.shoulder), ankle: n(form.ankle), back: n(form.back), notes: form.notes.trim(), saved: true } })
@@ -427,19 +429,31 @@ function DashboardView({ data, mutate, setTab, setDate, notify }: { data: AnyRow
   }
   const toggleSupplement = (id: string, checked: boolean) => mutate(d => { d.supplements.logs[today] = { ...(d.supplements.logs[today] || {}), [id]: checked } })
   return <div className="space-y-5">
-    <section className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]">
-      <div className="glass ring-accent relative overflow-hidden rounded-[28px] p-6 sm:p-8"><div className="absolute -right-10 -top-16 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(202,255,74,.16),transparent_66%)]"/><div className="relative max-w-2xl"><h1 className="text-4xl font-black tracking-[-.055em] sm:text-6xl">Build the engine.<br/>Then chase the distance.</h1><div className="mt-7 flex flex-wrap gap-2"><Badge>{lastWeight == null ? 'No weigh-in yet' : `${fmt(lastWeight)} kg latest`}</Badge><Badge>{Math.round(progress)}% toward weight target</Badge><Badge tone="lime">Today · {plan.muscu || 'Recovery day'}</Badge></div><div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${progress}%` }}/></div><div className="mt-2 flex justify-between text-[10px] text-zinc-600"><span>Start {fmt(data.goals.startWeight)} kg</span><span>Target {fmt(data.goals.targetWeight)} kg</span></div></div></div>
-      <div className={cardClass()}><div className="flex items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[.2em] text-zinc-500">Next up</div><div className="mt-1 text-2xl font-black">{formatDate(today, { weekday: 'long', day: 'numeric', month: 'short' })}</div></div><CalendarDays className="text-[var(--accent)]" size={22}/></div><div className="mt-5 space-y-2"><MiniLine icon={Dumbbell} label={plan.muscu || 'Recovery'} value={plan.muscu ? `${Object.values(PROGRAM_DEFS).filter((x: AnyRow) => x.sessions.includes(plan.muscu)).length} exercises` : 'No strength session'}/><MiniLine icon={Waves} label="Endurance" value={plan.endurance || 'Not scheduled'}/><MiniLine icon={Activity} label="Reinforcement" value={plan.reinforcement.length ? `${plan.reinforcement.length} drills` : '—'}/></div><div className="mt-5 flex justify-center"><PrimaryButton onClick={() => setTab('training')}><Dumbbell size={15}/> Open training</PrimaryButton></div></div>
+    <section className="glass ring-accent relative overflow-hidden rounded-[28px] p-6 sm:p-8">
+      <div className="absolute -right-10 -top-16 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(202,255,74,.16),transparent_66%)]"/>
+      <div className="relative grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[.2em] text-zinc-500">Today’s session</div>
+          <h1 className="mt-2 text-3xl font-black tracking-[-.045em] sm:text-4xl">{plan.muscu || 'Recovery day'}</h1>
+          <div className="mt-1 flex items-center gap-2 text-sm text-zinc-500"><CalendarDays size={15} className="text-[var(--accent)]"/>{formatDate(today, { weekday: 'long', day: 'numeric', month: 'short' })}</div>
+        </div>
+        <div className="flex sm:justify-end"><PrimaryButton onClick={() => setTab('training')}><Dumbbell size={15}/> Open training</PrimaryButton></div>
+      </div>
+      <div className="relative mt-5 grid gap-2 sm:grid-cols-3">
+        <MiniLine icon={Dumbbell} label="Strength" value={plan.muscu ? `${Object.values(PROGRAM_DEFS).filter((x: AnyRow) => x.sessions.includes(plan.muscu)).length} exercises` : 'No session planned'}/>
+        <MiniLine icon={Waves} label="Endurance" value={plan.endurance || 'Not scheduled'}/>
+        <MiniLine icon={Activity} label="Reinforcement" value={plan.reinforcement.length ? `${plan.reinforcement.length} drills` : 'No drills planned'}/>
+      </div>
     </section>
     <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><StatCard label="Last known weight" value={lastWeight == null ? '—' : `${fmt(lastWeight)} kg`} meta={lastWeight == null ? 'Record a check-in' : `${fmt((lastWeight - data.goals.startWeight), 1)} kg from start`} icon={Weight}/><StatCard label="Weekly average" value={weekAverage == null ? '—' : `${fmt(weekAverage)} kg`} meta={`${weekEntries.length} weigh-in(s) this week`} icon={Activity} accent="bg-sky-400/15 text-sky-300"/><StatCard label="Calories today" value={`${Math.round(totals.kcal)} kcal`} meta={`Target ${data.goals.calTarget} kcal`} icon={Flame} accent="bg-amber-300/15 text-amber-200"/><StatCard label="Protein today" value={`${Math.round(totals.p)} g`} meta={`Target ${data.goals.proteinTarget} g`} icon={Beef} accent="bg-rose-400/15 text-rose-300"/></section>
-    <section className={cardClass()}><SectionHead title="7-day plan" meta="Select a date to inspect or log it"/><div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">{Array.from({ length: 7 }, (_, i) => addDays(today, i)).map((day, i) => { const p = planForDate(day), done = data.workoutLogs.some((x: AnyRow) => x.date === day) || data.endurance.some((x: AnyRow) => x.date === day), isToday = day === today; return <button key={day} aria-label={`${formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' })}: ${p.muscu || 'Recovery'}${p.endurance ? `, ${p.endurance}` : ''}`} onClick={() => { setDate(day); setTab('training') }} className={cn('rounded-2xl border p-3 text-left transition', isToday ? 'border-[var(--accent)]/40 bg-[var(--accent)]/[.07]' : 'border-white/7 bg-white/[.02] hover:bg-white/[.05]')}><div className="text-[10px] font-bold uppercase tracking-[.15em] text-zinc-500">{formatDate(day, { weekday: 'short' })}</div><div className="mt-1 text-lg font-black">{formatDate(day, { day: '2-digit' })}</div><div className="mt-2 min-h-8 text-[11px] font-bold leading-4">{p.muscu || 'Recovery'}</div><div className="mt-2 text-[10px] text-zinc-600">{p.endurance || '—'}</div><div className="mt-3"><Badge tone={done ? 'good' : isToday ? 'lime' : 'muted'}>{done ? 'Logged' : isToday ? 'Today' : `Day ${p.cycleDay}`}</Badge></div></button> })}</div></section>
+    <section className={cardClass()}><SectionHead title="7-day plan" meta="Select a date to inspect or log it"/><div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">{Array.from({ length: 7 }, (_, i) => addDays(today, i)).map(day => { const p = planForDate(day), done = data.workoutLogs.some((x: AnyRow) => x.date === day) || data.endurance.some((x: AnyRow) => x.date === day), isToday = day === today; return <button key={day} aria-label={`${formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' })}: ${p.muscu || 'Recovery'}${p.endurance ? `, ${p.endurance}` : ''}`} onClick={() => { setDate(day); setTab('training') }} className={cn('rounded-2xl border p-3 text-left transition', isToday ? 'border-[var(--accent)]/40 bg-[var(--accent)]/[.07]' : 'border-white/7 bg-white/[.02] hover:bg-white/[.05]')}><div className="text-[10px] font-bold uppercase tracking-[.15em] text-zinc-500">{formatDate(day, { weekday: 'short' })}</div><div className="mt-1 text-lg font-black">{formatDate(day, { day: '2-digit' })}</div><div className="mt-2 min-h-8 text-[11px] font-bold leading-4">{p.muscu || 'Recovery'}</div><div className="mt-2 text-[10px] text-zinc-600">{p.endurance || '—'}</div><div className="mt-3"><Badge tone={done ? 'good' : isToday ? 'lime' : 'muted'}>{done ? 'Logged' : isToday ? 'Today' : `Day ${p.cycleDay}`}</Badge></div></button> })}</div></section>
     <section className="grid gap-5 lg:grid-cols-[1.05fr_.95fr]">
-      <div className={cardClass()}><SectionHead title="Daily check-in" meta={daily.saved ? 'Saved and locked for today' : 'Weight · sleep · pain · notes'}/>{daily.saved && <div className="mt-4 flex gap-2 rounded-xl border border-emerald-400/15 bg-emerald-400/[.05] p-3 text-xs text-emerald-200"><Check size={15}/> Today's check-in is saved.</div>}<div className="mt-5 grid gap-3 sm:grid-cols-2"><Field label="Weight (kg)" value={form.weight} onChange={v => setForm(f => ({ ...f, weight: v }))} step="0.1" disabled={daily.saved}/><Field label="Sleep (hours)" value={form.sleep} onChange={v => setForm(f => ({ ...f, sleep: v }))} step="0.1" disabled={daily.saved}/><Field label="Shoulder pain /10" value={form.shoulder} onChange={v => setForm(f => ({ ...f, shoulder: v }))} min={0} max={10} disabled={daily.saved}/><Field label="Ankle pain /10" value={form.ankle} onChange={v => setForm(f => ({ ...f, ankle: v }))} min={0} max={10} disabled={daily.saved}/><Field label="Back pain /10" value={form.back} onChange={v => setForm(f => ({ ...f, back: v }))} min={0} max={10} disabled={daily.saved}/><Field label="Notes" type="text" value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} placeholder="Energy, recovery, confidence…" disabled={daily.saved}/></div><div className="mt-4 flex justify-end"><PrimaryButton onClick={saveCheckin} disabled={daily.saved}><Save size={15}/> Save check-in</PrimaryButton></div></div>
+      <div className={cardClass()}><SectionHead title="Daily check-in" meta={daily.saved ? 'Saved and locked for today' : 'Weight · sleep · pain · notes'}/>{daily.saved && <div className="mt-4 flex gap-2 rounded-xl border border-emerald-400/15 bg-emerald-400/[.05] p-3 text-xs text-emerald-200"><Check size={15}/> Today&apos;s check-in is saved.</div>}<div className="mt-5 grid gap-3 sm:grid-cols-2"><Field label="Weight (kg)" value={form.weight} onChange={v => setForm(f => ({ ...f, weight: v }))} step="0.1" disabled={daily.saved}/><Field label="Sleep (hours)" value={form.sleep} onChange={v => setForm(f => ({ ...f, sleep: v }))} step="0.1" disabled={daily.saved}/><Field label="Shoulder pain /10" value={form.shoulder} onChange={v => setForm(f => ({ ...f, shoulder: v }))} min={0} max={10} disabled={daily.saved}/><Field label="Ankle pain /10" value={form.ankle} onChange={v => setForm(f => ({ ...f, ankle: v }))} min={0} max={10} disabled={daily.saved}/><Field label="Back pain /10" value={form.back} onChange={v => setForm(f => ({ ...f, back: v }))} min={0} max={10} disabled={daily.saved}/><Field label="Notes" type="text" value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} placeholder="Energy, recovery, confidence…" disabled={daily.saved}/></div><div className="mt-4 flex justify-end"><PrimaryButton onClick={saveCheckin} disabled={daily.saved}><Save size={15}/> Save check-in</PrimaryButton></div></div>
       <div className={cardClass()}><SectionHead title="Supplements" meta="Today's intake"/><div className="mt-4 space-y-1">{data.supplements.items.length ? data.supplements.items.map((item: AnyRow) => { const checked = Boolean(data.supplements.logs[today]?.[item.id]); return <div key={item.id} className="flex min-h-12 items-center gap-3 border-b border-white/6 py-2 last:border-0"><div className="min-w-0 flex-1"><div className="text-sm font-semibold">{item.name}</div><div className="text-[11px] text-zinc-500">{item.dose ? `${item.dose} ${item.unit}` : 'Dose not set'}</div></div><IntakeToggle checked={checked} onChange={() => toggleSupplement(item.id, !checked)} label={checked ? `Unmark ${item.name} as taken` : `Mark ${item.name} as taken`}/></div>}) : <Empty text="No supplements added yet."/>}</div><div className="mt-4 flex justify-center"><PrimaryButton secondary onClick={() => setTab('nutrition')}><Salad size={14}/> Manage nutrition</PrimaryButton></div></div>
     </section>
   </div>
 }
-function MiniLine({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function MiniLine({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/7 bg-white/[.025] px-4 py-3"><div className="flex items-center gap-3"><Icon size={16} className="text-zinc-500"/><span className="text-sm font-semibold">{label}</span></div><span className="text-right text-xs font-semibold text-zinc-500">{value}</span></div>
 }
 function Empty({ text }: { text: string }) { return <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-zinc-600">{text}</div> }
@@ -481,7 +495,7 @@ function TrainingView({ data, mutate, date, setDate, notify }: { data: AnyRow; m
     <section className={cardClass()}><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="mt-1 text-3xl font-black tracking-[-.04em]">{plan.muscu || 'Recovery day'}</h1><p className="mt-2 text-sm text-zinc-500">{formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Day {plan.cycleDay} of the 7-day cycle</p></div><DateNavigation date={date} setDate={setDate} label="Training date"/></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-white/7 bg-white/[.025] p-4"><div className="text-xs text-zinc-500">Strength sets</div><div className="mt-1 text-2xl font-black">{strengthDone}<span className="text-sm text-zinc-600"> / {strengthTotal}</span></div><Progress value={strengthTotal ? strengthDone / strengthTotal * 100 : 0}/></div><div className="rounded-2xl border border-white/7 bg-white/[.025] p-4"><div className="text-xs text-zinc-500">Reinforcement sets</div><div className="mt-1 text-2xl font-black">{reinforcementDone}<span className="text-sm text-zinc-600"> / {reinforcementTotal}</span></div><Progress value={reinforcementTotal ? reinforcementDone / reinforcementTotal * 100 : 0}/></div><div className="rounded-2xl border border-white/7 bg-white/[.025] p-4"><div className="text-xs text-zinc-500">Endurance planned</div><div className="mt-1 text-2xl font-black">{plan.endurance || '—'}</div></div></div></section>
     {!canEdit && <div role="status" className={cn('flex items-start gap-3 rounded-xl border px-3 py-3 text-xs', date < today ? 'border-zinc-400/15 bg-zinc-400/[.035] text-zinc-300' : 'border-sky-300/15 bg-sky-300/[.035] text-sky-100/80')}><span className={cn('mt-0.5 shrink-0 rounded-md px-2 py-1 text-[9px] font-bold uppercase tracking-wide', date < today ? 'bg-white/[.06] text-zinc-400' : 'bg-sky-300/[.08] text-sky-200')}>{date < today ? 'Closed' : 'Upcoming'}</span><div><div className="font-semibold">{date < today ? 'This training day has passed' : 'This training session is scheduled'}</div><p className="mt-1 leading-5 text-zinc-500">{date < today ? `The log for ${formatDate(date, { weekday: 'long', day: 'numeric', month: 'long' })} is read-only.` : `Logging opens on ${formatDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}.`}</p></div></div>}
     <section className={cardClass()}><SectionHead title="Strength" meta={plan.muscu ? `${exercises.length} exercises · double progression` : 'No strength session prescribed'}/>{plan.muscu ? <div className="mt-4 space-y-3">{exercises.map((def: AnyRow, index: number) => <StrengthCard key={`${date}-${def.key}`} data={data} date={date} session={plan.muscu!} def={def} index={index} disabled={!canEdit} onSave={saveStrength} onEdit={editStrength} onDelete={deleteStrength}/>)}</div> : <Empty text="Recovery day — no strength session in the current cycle."/>}</section>
-    <section className={cardClass()}><SectionHead title="Reinforcement & rehab" meta="Back · shoulder · ankle"/>{reinforcementDefs.length ? <div className="mt-4 grid gap-3 lg:grid-cols-2">{reinforcementDefs.map((def: AnyRow) => <ReinforcementCard key={`${date}-${def.key}`} data={data} date={date} session={plan.muscu || ''} def={def} disabled={!canEdit} onSave={saveReinforcement} onEdit={editReinforcement} onDelete={deleteReinforcement}/>)}</div> : <Empty text="No reinforcement block prescribed for this day."/>}<p className="mt-4 flex items-start gap-2 text-[11px] leading-5 text-zinc-600"><AlertCircle size={14} className="mt-0.5 shrink-0"/>Pain scores are a tracking aid, not medical advice. Stop an exercise if symptoms worsen and follow your clinician or physiotherapist's instructions.</p></section>
+    <section className={cardClass()}><SectionHead title="Reinforcement & rehab" meta="Back · shoulder · ankle"/>{reinforcementDefs.length ? <div className="mt-4 grid gap-3 lg:grid-cols-2">{reinforcementDefs.map((def: AnyRow) => <ReinforcementCard key={`${date}-${def.key}`} data={data} date={date} session={plan.muscu || ''} def={def} disabled={!canEdit} onSave={saveReinforcement} onEdit={editReinforcement} onDelete={deleteReinforcement}/>)}</div> : <Empty text="No reinforcement block prescribed for this day."/>}<p className="mt-4 flex items-start gap-2 text-[11px] leading-5 text-zinc-600"><AlertCircle size={14} className="mt-0.5 shrink-0"/>Pain scores are a tracking aid, not medical advice. Stop an exercise if symptoms worsen and follow your clinician or physiotherapist&apos;s instructions.</p></section>
     <fieldset disabled={!canEdit} className="min-w-0 border-0 p-0"><EnduranceCard data={data} date={date} planned={plan.endurance} onSave={saveEndurance} onDelete={deleteEndurance}/></fieldset>
   </div>
 }
@@ -544,7 +558,6 @@ function NutritionView({ data, mutate, date, setDate, notify }: { data: AnyRow; 
   const emptyIngredient = () => ({ id: uid(), foodId: '', name: '', grams: '100', unit: 'g', kcal100: 0, p100: 0, c100: 0, f100: 0, source: '', sourceUrl: '', code: '' })
   const emptyMeal = () => ({ id: '', name: '', note: '', mode: 'quick' as 'ingredients' | 'quick', ingredients: [emptyIngredient()], kcal: '', p: '', c: '', f: '' })
   const [mealForm, setMealForm] = useState<ReturnType<typeof emptyMeal>>(emptyMeal)
-  const [foodForm, setFoodForm] = useState({ name: '', kcal100: '', p100: '', c100: '', f100: '' })
   const [foodSearchTerm, setFoodSearchTerm] = useState('')
   const [foodSearchResults, setFoodSearchResults] = useState<AnyRow[]>([])
   const [foodSearchLoading, setFoodSearchLoading] = useState(false)
@@ -552,7 +565,7 @@ function NutritionView({ data, mutate, date, setDate, notify }: { data: AnyRow; 
   const lastFoodSearchAt = useRef(0)
   const [suppForm, setSuppForm] = useState({ name: '', dose: '', unit: 'g' })
   const totals = totalNutrition(data, date), bySlot = data.mealLogs[date] || {}
-  const foodOptions = [...DEFAULT_FOODS, ...(data.foods || []), ...foodSearchResults]
+  const foodOptions = [...DEFAULT_FOODS, ...foodSearchResults]
   const formTotals = mealForm.mode === 'ingredients'
     ? calculateIngredients(mealForm.ingredients.map(item => ({ ...item, grams: n(item.grams, 0) || 0 })))
     : { kcal: n(mealForm.kcal, 0) || 0, p: n(mealForm.p, 0) || 0, c: n(mealForm.c, 0) || 0, f: n(mealForm.f, 0) || 0 }
@@ -618,16 +631,6 @@ function NutritionView({ data, mutate, date, setDate, notify }: { data: AnyRow; 
     const hasIngredients = Array.isArray(meal.ingredients) && meal.ingredients.length > 0
     setMealForm({ id: meal.id, name: meal.name, note: meal.note || '', mode: hasIngredients ? 'ingredients' : 'quick', ingredients, kcal: String(meal.kcal ?? ''), p: String(meal.p ?? meal.protein ?? ''), c: String(meal.c ?? meal.carbs ?? ''), f: String(meal.f ?? meal.fat ?? '') })
   }
-  const saveFood = (e: FormEvent) => {
-    e.preventDefault()
-    const kcal100 = n(foodForm.kcal100), p100 = n(foodForm.p100), c100 = n(foodForm.c100), f100 = n(foodForm.f100)
-    if (!foodForm.name.trim() || [kcal100, p100, c100, f100].some(v => v === null || v < 0)) { notify('Enter the food name and valid nutrition values per 100 g'); return }
-    const food = { id: uid(), name: foodForm.name.trim(), kcal100: kcal100!, p100: p100!, c100: c100!, f100: f100! }
-    mutate(d => { d.foods.push(food) })
-    setFoodForm({ name: '', kcal100: '', p100: '', c100: '', f100: '' })
-    notify('Food saved to My foods & labels')
-  }
-  const deleteFood = (id: string) => { if (!window.confirm('Remove this food from My foods & labels? Saved meal ingredients keep their nutrition values.')) return; mutate(d => { d.foods = d.foods.filter((food: AnyRow) => food.id !== id) }); notify('Food removed') }
   const addSupplement = (e: FormEvent) => { e.preventDefault(); if (!suppForm.name.trim()) return; mutate(d => d.supplements.items.push({ id: uid(), name: suppForm.name.trim(), dose: suppForm.dose.trim(), unit: suppForm.unit.trim() })); setSuppForm({ name: '', dose: '', unit: 'g' }); notify('Supplement added') }
   const toggleSupp = (id: string, checked: boolean) => mutate(d => { d.supplements.logs[date] = { ...(d.supplements.logs[date] || {}), [id]: checked } })
   const removeSupplement = (id: string) => { if (!window.confirm('Remove this supplement?')) return; mutate(d => { d.supplements.items = d.supplements.items.filter((x: AnyRow) => x.id !== id) }); notify('Supplement removed') }
@@ -643,8 +646,7 @@ function NutritionView({ data, mutate, date, setDate, notify }: { data: AnyRow; 
         <div className="mt-4 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent)]/[.055] p-4"><div className="text-[10px] font-bold uppercase tracking-[.15em] text-zinc-500">Calculated meal total</div><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><div><div className="text-xl font-black">{Math.round(formTotals.kcal)}</div><div className="text-[10px] text-zinc-500">kcal</div></div><div><div className="text-xl font-black">{fmt(formTotals.p, 1)} g</div><div className="text-[10px] text-zinc-500">Protein</div></div><div><div className="text-xl font-black">{fmt(formTotals.c, 1)} g</div><div className="text-[10px] text-zinc-500">Carbs</div></div><div><div className="text-xl font-black">{fmt(formTotals.f, 1)} g</div><div className="text-[10px] text-zinc-500">Fat</div></div></div></div>
         <div className="mt-4"><Field label="Notes / portion" type="text" value={mealForm.note} onChange={v => setMealForm(f => ({ ...f, note: v }))} placeholder="Optional: meal timing, preparation…" wide/></div><div className="mt-5 flex justify-center"><PrimaryButton type="submit"><Plus size={14}/>{mealForm.id ? 'Save changes' : 'Add meal to library'}</PrimaryButton></div>
       </form>
-      <div className="space-y-5"><div className={cardClass()}><SectionHead title="Meal library" meta={`${data.meals.length} reusable items`}/><div className="mt-4 space-y-2">{data.meals.length ? data.meals.map((meal: AnyRow) => { const macros = mealNutrition(meal); return <div key={meal.id} className="flex items-center gap-3 rounded-2xl border border-white/7 bg-white/[.02] p-3"><div className="min-w-0 flex-1"><div className="break-words text-sm font-bold">{meal.name}</div><div className="mt-1 text-[11px] text-zinc-500">{Math.round(macros.kcal)} kcal · {fmt(macros.p, 0)} P · {fmt(macros.c, 0)} C · {fmt(macros.f, 0)} F</div>{meal.ingredients?.length > 0 && <div className="mt-1 text-[10px] leading-4 text-zinc-600">{meal.ingredients.map((item: AnyRow) => `${item.name} ${fmt(item.grams, 0)} ${item.unit || 'g'}`).join(' · ')}</div>}{meal.note && <div className="mt-1 break-words text-[10px] text-zinc-600">{meal.note}</div>}</div><button aria-label="Edit meal" onClick={() => editMeal(meal)} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/8 text-zinc-500 hover:text-white"><Pencil size={14}/></button><button aria-label="Delete meal" onClick={() => deleteMeal(meal.id)} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/8 text-zinc-500 hover:text-red-300"><Trash2 size={14}/></button></div>}) : <Empty text="Your reusable meal library is empty. Add the first meal from its ingredients."/>}</div></div>
-      <div className={cardClass()}><SectionHead title="My foods & labels" meta={`${(data.foods || []).length} saved`}/><form onSubmit={saveFood} className="mt-4 space-y-3"><Field label="Food name" type="text" value={foodForm.name} onChange={v => setFoodForm(f => ({ ...f, name: v }))} placeholder="Food name" wide/><div className="grid grid-cols-2 gap-3"><Field label="kcal / 100 g" value={foodForm.kcal100} onChange={v => setFoodForm(f => ({ ...f, kcal100: v }))} min={0} step="0.1"/><Field label="Protein / 100 g" value={foodForm.p100} onChange={v => setFoodForm(f => ({ ...f, p100: v }))} min={0} step="0.1"/><Field label="Carbs / 100 g" value={foodForm.c100} onChange={v => setFoodForm(f => ({ ...f, c100: v }))} min={0} step="0.1"/><Field label="Fat / 100 g" value={foodForm.f100} onChange={v => setFoodForm(f => ({ ...f, f100: v }))} min={0} step="0.1"/></div><div className="mt-4 flex justify-center"><PrimaryButton type="submit"><Plus size={14}/> Save food</PrimaryButton></div></form>{(data.foods || []).length > 0 && <div className="mt-4 space-y-1 border-t border-white/7 pt-3">{data.foods.map((food: AnyRow) => <div key={food.id} className="flex items-center gap-2 py-2"><div className="min-w-0 flex-1"><div className="break-words text-xs font-semibold">{food.name}</div><div className="text-[10px] text-zinc-600">{food.kcal100} kcal · {fmt(food.p100)} P · {fmt(food.c100)} C · {fmt(food.f100)} F / 100 g</div></div><button type="button" aria-label={`Remove ${food.name}`} onClick={() => deleteFood(food.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-600 hover:text-red-300"><Trash2 size={13}/></button></div>)}</div>}</div></div>
+      <div className="space-y-5"><div className={cardClass()}><SectionHead title="Meal library" meta={`${data.meals.length} reusable items`}/><div className="mt-4 space-y-2">{data.meals.length ? data.meals.map((meal: AnyRow) => { const macros = mealNutrition(meal); return <div key={meal.id} className="flex items-center gap-3 rounded-2xl border border-white/7 bg-white/[.02] p-3"><div className="min-w-0 flex-1"><div className="break-words text-sm font-bold">{meal.name}</div><div className="mt-1 text-[11px] text-zinc-500">{Math.round(macros.kcal)} kcal · {fmt(macros.p, 0)} P · {fmt(macros.c, 0)} C · {fmt(macros.f, 0)} F</div>{meal.ingredients?.length > 0 && <div className="mt-1 text-[10px] leading-4 text-zinc-600">{meal.ingredients.map((item: AnyRow) => `${item.name} ${fmt(item.grams, 0)} ${item.unit || 'g'}`).join(' · ')}</div>}{meal.note && <div className="mt-1 break-words text-[10px] text-zinc-600">{meal.note}</div>}</div><button aria-label="Edit meal" onClick={() => editMeal(meal)} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/8 text-zinc-500 hover:text-white"><Pencil size={14}/></button><button aria-label="Delete meal" onClick={() => deleteMeal(meal.id)} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/8 text-zinc-500 hover:text-red-300"><Trash2 size={14}/></button></div>}) : <Empty text="Your reusable meal library is empty. Add the first meal from its ingredients."/>}</div></div></div>
     </section>
     <section className={cardClass()}><SectionHead title="Supplements" meta="Dose and daily intake"/><form onSubmit={addSupplement} className="mt-4 grid gap-3 sm:grid-cols-[1.3fr_.8fr_.6fr_auto]"><Field label="Name" type="text" value={suppForm.name} onChange={v => setSuppForm(f => ({ ...f, name: v }))} placeholder="Creatine"/><Field label="Dose" type="text" value={suppForm.dose} onChange={v => setSuppForm(f => ({ ...f, dose: v }))} placeholder="5"/><Field label="Unit" type="text" value={suppForm.unit} onChange={v => setSuppForm(f => ({ ...f, unit: v }))} placeholder="g"/><div className="flex items-end justify-end"><PrimaryButton type="submit"><Plus size={14}/> Add</PrimaryButton></div></form><div className="mt-4 space-y-1">{data.supplements.items.map((item: AnyRow) => { const checked = Boolean(data.supplements.logs[date]?.[item.id]); return <div key={item.id} className="flex items-center gap-3 border-b border-white/6 py-3 last:border-0"><div className="min-w-0 flex-1"><div className="text-sm font-bold">{item.name}</div><div className="text-[11px] text-zinc-500">{item.dose ? `${item.dose} ${item.unit}` : 'Dose not specified'}</div></div><IntakeToggle checked={checked} onChange={() => toggleSupp(item.id, !checked)} label={checked ? `Unmark ${item.name} as taken` : `Mark ${item.name} as taken`}/><button aria-label={`Remove ${item.name}`} onClick={() => removeSupplement(item.id)} className="grid h-9 w-9 place-items-center rounded-xl text-zinc-600 hover:bg-red-400/10 hover:text-red-300"><Trash2 size={14}/></button></div> })}</div></section>
   </div>
@@ -653,10 +655,8 @@ function NutritionView({ data, mutate, date, setDate, notify }: { data: AnyRow; 
 function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; notify: (message: string) => void }) {
   const [goals, setGoals] = useState<AnyRow>({ ...data.goals })
   const [chartMetric, setChartMetric] = useState<'weight' | 'run' | 'pace' | 'swim' | 'nutrition'>('run')
-  const [showSamplePreview, setShowSamplePreview] = useState(true)
   const [chartPeriod, setChartPeriod] = useState<'day' | 'week' | 'month'>('week')
-  useEffect(() => setGoals({ ...data.goals }), [data.goals.startWeight, data.goals.midWeight, data.goals.targetWeight, data.goals.calTarget, data.goals.proteinTarget])
-  const weights = recordedWeights(data), weeks = weeklyAverages(data), lastWeek = weeks.at(-1)
+  const weights = recordedWeights(data), weeks = weeklyAverages(data)
   const saveGoals = () => { if (goals.targetWeight <= goals.startWeight || goals.calTarget <= 0 || goals.proteinTarget <= 0) { notify('Check your goal values'); return }; mutate(d => { d.goals = { ...d.goals, ...goals } }); notify('Goals updated') }
   const runRows = data.endurance.filter((row: AnyRow) => row.type === 'Course').sort((a: AnyRow, b: AnyRow) => a.date.localeCompare(b.date))
   const swimRows = data.endurance.filter((row: AnyRow) => row.type === 'Natation').sort((a: AnyRow, b: AnyRow) => a.date.localeCompare(b.date))
@@ -705,9 +705,7 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.endurance, data.workoutLogs, data.goalHistory])
 
-  const today = todayISO(), weekStart = mondayOf(today), weekEnd = addDays(weekStart, 6), previousWeekStart = addDays(weekStart, -7), previousWeekEnd = addDays(weekStart, -1)
-  const currentWeekLogs = data.endurance.filter((row: AnyRow) => row.date >= weekStart && row.date <= weekEnd)
-  const previousWeekLogs = data.endurance.filter((row: AnyRow) => row.date >= previousWeekStart && row.date <= previousWeekEnd)
+  const today = todayISO(), weekStart = mondayOf(today)
   const plannedSessions: Array<{ date: string; kind: 'strength' | 'endurance'; session?: string; activity?: string }> = []
   for (let index = 0; index < 7; index++) {
     const date = addDays(weekStart, index), plan = planForDate(date)
@@ -718,20 +716,6 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
   const isStrengthSessionComplete = (date: string, session: string) => isFullStrengthSessionComplete(data.workoutLogs, Object.values(PROGRAM_DEFS), date, session, (def, currentSession) => setCount(targetFor(def, currentSession)))
   const { completed: completedSessions, inProgress: inProgressSessions } = summarizePlannedSessions(plannedSessions, data.workoutLogs, data.endurance, isStrengthSessionComplete)
   const consistency = plannedSessions.length ? Math.round(completedSessions / plannedSessions.length * 100) : 0
-  const weeklySportDistance = (rows: AnyRow[], start: string, end: string) => rows.filter(row => row.date >= start && row.date <= end).reduce((sum, row) => sum + (n(row.distanceKm, 0) || 0), 0)
-  const currentRunLogs = currentWeekLogs.filter((row: AnyRow) => row.type === 'Course')
-  const previousRunLogs = previousWeekLogs.filter((row: AnyRow) => row.type === 'Course')
-  const currentSwimLogs = currentWeekLogs.filter((row: AnyRow) => row.type === 'Natation')
-  const previousSwimLogs = previousWeekLogs.filter((row: AnyRow) => row.type === 'Natation')
-  const lastRun = runRows.at(-1), previousRun = runRows.at(-2)
-  const pace = (row?: AnyRow) => row && (n(row.distanceKm, 0) || 0) > 0 ? (n(row.durationMin, 0) || 0) / (n(row.distanceKm, 0) || 1) : null
-  const lastRunPace = pace(lastRun), previousRunPace = pace(previousRun)
-  const paceValueText = (value: number | null) => { if (value === null) return '—'; const seconds = Math.round(value * 60); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` }
-  const paceText = (value: number | null) => value === null ? '—' : `${paceValueText(value)} / km`
-  const currentRunDistance = weeklySportDistance(currentRunLogs, weekStart, weekEnd)
-  const previousRunDistance = weeklySportDistance(previousRunLogs, previousWeekStart, previousWeekEnd)
-  const currentSwimDistance = weeklySportDistance(currentSwimLogs, weekStart, weekEnd)
-  const previousSwimDistance = weeklySportDistance(previousSwimLogs, previousWeekStart, previousWeekEnd)
   const monthStart = (offset: number) => {
     const date = new Date(`${today.slice(0, 7)}-01T12:00:00`)
     date.setMonth(date.getMonth() + offset)
@@ -768,19 +752,8 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
     return { label: period.label, kcal: totals.kcal / dates.length, protein: totals.protein / dates.length }
   })
   const actualChartPoints = chartMetric === 'nutrition' ? [] : makeActualSeries(chartMetric)
-  const sampleValues: Record<'weight' | 'run' | 'pace' | 'swim', Record<'day' | 'week' | 'month', Array<number | null>>> = {
-    weight: { day: [70, 70.1, 70, 70.2, 70.3, 70.2, 70.4], week: [70, 70.3, 70.2, 70.5, 70.8, 71], month: [68.8, 69.2, 69.5, 70, 70.5, 71] },
-    run: { day: [2.4, null, 3.1, null, 4.2, null, 5.1], week: [4, 5.5, 5, 6.5, 7.2, 8.1], month: [12, 15, 17, 20, 23, 27] },
-    pace: { day: [6.2, null, 6.0, null, 5.8, null, 5.6], week: [6.4, 6.2, 6.1, 6.0, 5.8, 5.7], month: [6.8, 6.6, 6.4, 6.2, 5.9, 5.7] },
-    swim: { day: [.3, null, .4, null, .5, null, .7], week: [.4, .5, .4, .65, .75, .9], month: [1.2, 1.5, 1.8, 2.1, 2.6, 3] },
-  }
-  const nutritionSampleValues: Record<'day' | 'week' | 'month', Array<{ kcal: number; protein: number }>> = {
-    day: [{ kcal: 2150, protein: 112 }, { kcal: 2280, protein: 126 }, { kcal: 2050, protein: 108 }, { kcal: 2410, protein: 139 }, { kcal: 2230, protein: 131 }, { kcal: 2520, protein: 146 }, { kcal: 2380, protein: 142 }],
-    week: [{ kcal: 1980, protein: 105 }, { kcal: 2100, protein: 112 }, { kcal: 2220, protein: 118 }, { kcal: 2160, protein: 126 }, { kcal: 2320, protein: 134 }, { kcal: 2450, protein: 146 }],
-    month: [{ kcal: 1850, protein: 96 }, { kcal: 1980, protein: 105 }, { kcal: 2100, protein: 112 }, { kcal: 2240, protein: 121 }, { kcal: 2370, protein: 138 }, { kcal: 2450, protein: 146 }],
-  }
-  const nutritionPoints = chartMetric === 'nutrition' ? showSamplePreview ? periods.map((period, index) => ({ label: period.label, ...nutritionSampleValues[chartPeriod][index] })) : makeNutritionSeries() : undefined
-  const chartPoints = chartMetric === 'nutrition' ? [] : showSamplePreview ? periods.map((period, index) => ({ label: period.label, value: sampleValues[chartMetric][chartPeriod][index] ?? null })) : actualChartPoints
+  const nutritionPoints = chartMetric === 'nutrition' ? makeNutritionSeries() : undefined
+  const chartPoints = chartMetric === 'nutrition' ? [] : actualChartPoints
   const chartUnit = chartMetric === 'weight' ? 'kg' : chartMetric === 'pace' ? 'min/km' : 'km'
   const metricLabel = chartMetric === 'nutrition' ? 'Calories & protein' : chartMetric === 'weight' ? 'Weight' : chartMetric === 'run' ? 'Running distance' : chartMetric === 'pace' ? 'Running pace' : 'Swimming distance'
   const periodLabel = chartMetric === 'nutrition' ? chartPeriod === 'day' ? 'Daily intake · last 7 days' : chartPeriod === 'week' ? 'Daily average · last 6 weeks' : 'Daily average · last 6 months' : chartPeriod === 'day' ? 'Daily · last 7 days' : chartPeriod === 'week' ? 'Weekly · last 6 weeks' : 'Monthly · last 6 months'
@@ -798,8 +771,6 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
   const nutritionDeltaKcal = currentNutritionPoint?.kcal !== null && currentNutritionPoint?.kcal !== undefined && previousNutritionPoint?.kcal !== null && previousNutritionPoint?.kcal !== undefined ? currentNutritionPoint.kcal - previousNutritionPoint.kcal : null
   const nutritionDeltaProtein = currentNutritionPoint?.protein !== null && currentNutritionPoint?.protein !== undefined && previousNutritionPoint?.protein !== null && previousNutritionPoint?.protein !== undefined ? currentNutritionPoint.protein - previousNutritionPoint.protein : null
   const deltaLabel = chartMetric === 'nutrition' ? nutritionDeltaKcal === null || nutritionDeltaProtein === null ? 'Log two comparable periods to see a trend' : `${nutritionDeltaKcal > 0 ? '+' : ''}${fmt(nutritionDeltaKcal, 0)} kcal · ${nutritionDeltaProtein > 0 ? '+' : ''}${fmt(nutritionDeltaProtein, 0)} g protein vs previous ${chartPeriod}` : trendDelta === null ? 'Log two comparable periods to see a trend' : `${trendDelta > 0 ? '+' : ''}${fmt(trendDelta, chartMetric === 'weight' ? 1 : 2)} ${chartUnit} vs previous ${chartPeriod}`
-  const lastTwoWeightWeeks = weeks.slice(-2)
-  const weightDelta = lastTwoWeightWeeks.length === 2 ? lastTwoWeightWeeks[1].average - lastTwoWeightWeeks[0].average : null
   const milestoneStates = milestones.map(goal => ({ ...goal, done: Boolean(goal.achieved || data.goalHistory[goal.key]?.achieved) }))
   const activeMilestones = milestoneStates.filter(goal => !goal.done && goal.pct > 0)
   const nextMilestone = milestoneStates.find(goal => !goal.done && goal.pct === 0)
@@ -811,11 +782,11 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
       <div className="mt-6 grid grid-cols-2 gap-3"><div className="rounded-2xl border border-white/8 bg-black/20 p-4"><div className="text-xs text-zinc-400">Sessions completed</div><div className="mt-2 text-3xl font-black">{completedSessions}<span className="text-lg text-zinc-500">/{plannedSessions.length}</span></div><div className="mt-1 text-xs text-zinc-500">Planned sessions this week</div></div><div className="rounded-2xl border border-white/8 bg-black/20 p-4"><div className="text-xs text-zinc-400">Sessions in progress</div><div className="mt-2 text-3xl font-black">{inProgressSessions}</div><div className="mt-1 text-xs text-zinc-500">Partially logged strength sessions</div></div></div>
     </section>
     <section className={cn(cardClass('!p-5 sm:!p-6'), 'overflow-hidden')}>
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">Progress trend</h2><p className="mt-1 text-xs text-zinc-500">{metricLabel} · {periodLabel}</p></div><div className="flex items-center gap-1.5"><label className="sr-only" htmlFor="progress-chart-metric">Choose graph</label><div className="relative"><select id="progress-chart-metric" value={chartMetric} onChange={event => setChartMetric(event.target.value as 'weight' | 'run' | 'pace' | 'swim' | 'nutrition')} className="h-6 min-w-[68px] appearance-none rounded-full border border-white/8 bg-white/[.04] px-2 pr-6 text-[6px] font-bold uppercase tracking-[.06em] text-zinc-300 outline-none focus:border-[var(--accent)]/40" style={{ fontSize: 10, backgroundImage: 'none' }}><option value="weight">Weight</option><option value="run">Running distance</option><option value="pace">Running pace</option><option value="swim">Swimming</option><option value="nutrition">Nutrition</option></select><ChevronDown size={9} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500"/></div><button type="button" aria-pressed={showSamplePreview} onClick={() => setShowSamplePreview(value => !value)} className={cn('h-6 rounded-full border px-1.5 text-[6px] font-bold uppercase tracking-[.06em] transition', showSamplePreview ? 'border-[var(--accent)]/25 bg-[var(--accent)]/[.07] text-[var(--accent)]' : 'border-white/8 bg-white/[.025] text-zinc-500 hover:text-zinc-200')} style={{ fontSize: 9 }}>{showSamplePreview ? 'Demo' : 'Preview'}</button></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">Progress trend</h2><p className="mt-1 text-xs text-zinc-500">{metricLabel} · {periodLabel}</p></div><div className="relative"><label className="sr-only" htmlFor="progress-chart-metric">Choose graph</label><select id="progress-chart-metric" value={chartMetric} onChange={event => setChartMetric(event.target.value as 'weight' | 'run' | 'pace' | 'swim' | 'nutrition')} className="h-6 w-[102px] min-w-[102px] appearance-none rounded-full border border-white/8 bg-white/[.04] px-2 pr-6 text-[9px] font-bold uppercase tracking-[.04em] text-zinc-300 outline-none focus:border-[var(--accent)]/40" style={{ backgroundImage: 'none', fontSize: 9 }}><option value="weight">Weight</option><option value="run">Running distance</option><option value="pace">Running pace</option><option value="swim">Swimming</option><option value="nutrition">Nutrition</option></select><ChevronDown size={9} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500"/></div></div>
       <div className="mt-3"><div className="inline-flex rounded-lg border border-white/7 bg-black/20 p-0.5" role="group" aria-label="Choose chart period">{(['day', 'week', 'month'] as const).map(period => <button key={period} type="button" aria-pressed={chartPeriod === period} onClick={() => setChartPeriod(period)} className={cn('rounded-md px-1.5 py-0.5 text-[6px] font-bold uppercase tracking-[.06em] transition', chartPeriod === period ? 'bg-white/[.08] text-zinc-100' : 'text-zinc-600 hover:text-zinc-300')} style={{ fontSize: 9 }}>{period}</button>)}</div></div>
       <div className="mt-2"><GoalsProgressChart points={chartPoints} unit={chartUnit} emptyMessage={chartEmptyMessage} target={chartMetric === 'weight' ? data.goals.targetWeight : undefined} nutritionPoints={nutritionPoints}/></div>
-      <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-white/[.06] pt-3"><span className={cn('inline-flex rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide', trendTone)}>{chartMetric === 'nutrition' && trendDirection === 'improved' ? 'Closer to targets' : chartMetric === 'nutrition' && trendDirection === 'regressed' ? 'Further from targets' : trendLabel}</span><p className="text-xs text-zinc-500">{showSamplePreview && (chartMetric === 'nutrition' ? nutritionDeltaKcal !== null : trendDelta !== null) ? `Example · ${deltaLabel}` : deltaLabel}</p></div>
-      {!showSamplePreview && chartMetric === 'weight' && <details className="group mt-4 rounded-xl border border-white/7 bg-white/[.02]"><summary className="cursor-pointer list-none px-3 py-2 text-xs font-bold text-zinc-400">Edit weight targets <span className="float-right text-zinc-600 group-open:rotate-180">⌄</span></summary><div className="grid gap-3 border-t border-white/7 p-3 sm:grid-cols-3"><Field label="Starting weight (kg)" value={goals.startWeight} onChange={value => setGoals(current => ({ ...current, startWeight: Number(value) }))} step="0.1"/><Field label="Milestone weight (kg)" value={goals.midWeight} onChange={value => setGoals(current => ({ ...current, midWeight: Number(value) }))} step="0.1"/><Field label="Target weight (kg)" value={goals.targetWeight} onChange={value => setGoals(current => ({ ...current, targetWeight: Number(value) }))} step="0.1"/><div className="sm:col-span-3"><PrimaryButton onClick={saveGoals}><Save size={14}/> Save weight targets</PrimaryButton></div></div></details>}
+      <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-white/[.06] pt-3"><span className={cn('inline-flex rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide', trendTone)}>{chartMetric === 'nutrition' && trendDirection === 'improved' ? 'Closer to targets' : chartMetric === 'nutrition' && trendDirection === 'regressed' ? 'Further from targets' : trendLabel}</span><p className="text-xs text-zinc-500">{deltaLabel}</p></div>
+      {chartMetric === 'weight' && <details className="group mt-4 rounded-xl border border-white/7 bg-white/[.02]"><summary className="cursor-pointer list-none px-3 py-2 text-xs font-bold text-zinc-400">Edit weight targets <span className="float-right text-zinc-600 group-open:rotate-180">⌄</span></summary><div className="grid gap-3 border-t border-white/7 p-3 sm:grid-cols-3"><Field label="Starting weight (kg)" value={goals.startWeight} onChange={value => setGoals(current => ({ ...current, startWeight: Number(value) }))} step="0.1"/><Field label="Milestone weight (kg)" value={goals.midWeight} onChange={value => setGoals(current => ({ ...current, midWeight: Number(value) }))} step="0.1"/><Field label="Target weight (kg)" value={goals.targetWeight} onChange={value => setGoals(current => ({ ...current, targetWeight: Number(value) }))} step="0.1"/><div className="sm:col-span-3"><PrimaryButton onClick={saveGoals}><Save size={14}/> Save weight targets</PrimaryButton></div></div></details>}
     </section>
     <section className={cardClass('!p-5 sm:!p-6')}><SectionHead title="Milestones in progress" meta={`${activeMilestones.length} active`}/>{activeMilestones.length ? <div className="mt-4 space-y-3">{activeMilestones.map(goal => <div key={goal.key} className="rounded-xl border border-white/7 bg-white/[.02] p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="font-bold">{goal.title}</div><div className="mt-1 text-xs text-zinc-500">{goal.detail}</div></div><div className="shrink-0 text-sm font-black text-[var(--accent)]">{Math.round(goal.pct)}%</div></div><Progress value={goal.pct}/></div>)}</div> : <Empty text="No milestones in progress yet. Log training to start building progress."/>}{nextMilestone && <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/7 pt-3"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-zinc-600">Next to start</span><span className="text-sm font-bold text-zinc-300">{nextMilestone.title}</span></div>}</section>
     <details className={cn(cardClass('!p-0'), 'group')}><summary className="flex cursor-pointer list-none items-center gap-3 p-4 sm:p-5"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[.05] text-zinc-400"><Flag size={17}/></div><div className="min-w-0 flex-1"><div className="font-bold">Training roadmap</div><div className="mt-1 text-xs text-zinc-500">Strength, swim, run and triathlon milestones</div></div><span className="px-2 text-lg text-zinc-500 transition group-open:rotate-180">⌄</span></summary><div className="grid gap-3 border-t border-white/7 p-4 md:grid-cols-2 sm:p-5">{milestones.map((goal, index) => { const done = Boolean(data.goalHistory[goal.key]?.achieved || goal.achieved), pct = done ? 100 : goal.pct; return <div key={goal.key} className={cn('rounded-2xl border p-4', done ? 'border-emerald-400/20 bg-emerald-400/[.035]' : 'border-white/7 bg-white/[.02]')}><div className="flex items-start gap-3"><div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', done ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/[.04] text-zinc-500')}>{done ? <Check size={18}/> : <Flag size={17}/>}</div><div className="min-w-0 flex-1"><div className="font-bold">{index + 1}. {goal.title}</div><div className="mt-1 text-xs leading-5 text-zinc-500">{goal.detail}</div></div><Badge tone={done ? 'good' : pct > 0 ? 'lime' : 'muted'}>{done ? 'DONE' : `${Math.round(pct)}%`}</Badge></div><Progress value={pct}/></div> })}</div></details>
@@ -901,13 +872,8 @@ function NutritionProgressChart({ points, emptyMessage }: { points: Array<{ labe
       {hasData && <><path d={caloriePath} fill="none" stroke="#fbbf24" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/><path d={proteinPath} fill="none" stroke="#fb7185" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/></>}
       {points.map((point, index) => <g key={point.label}>{point.kcal !== null && <><circle cx={x(index)} cy={yCalories(point.kcal)} r="3.5" fill="#fbbf24"/><title>{`${point.label}: ${fmt(point.kcal, 0)} kcal/day`}</title></>}{point.protein !== null && <><circle cx={x(index)} cy={yProtein(point.protein)} r="3.5" fill="#fb7185"/><title>{`${point.label}: ${fmt(point.protein, 0)} g protein/day`}</title></>}<text x={x(index)} y={height - 7} textAnchor="middle" fontSize="11" fill={index === points.length - 1 ? '#caff4a' : '#717a84'}>{point.label}</text></g>)}
       {!hasData && <text x={width / 2} y={height / 2 - 4} textAnchor="middle" fontSize="12" fill="#717a84">{emptyMessage}</text>}
-      {!hasData && <text x={width / 2} y={height / 2 - 4} textAnchor="middle" fontSize="12" fill="#717a84">{emptyMessage}</text>}
     </svg>
   </div>
-}
-function NutritionWeekVisual({ days, calorieTarget, proteinTarget }: { days: Array<{ date: string; label: string; logged: boolean; future: boolean; kcal: number; protein: number }>; calorieTarget: number; proteinTarget: number }) {
-  const track = (value: number, target: number) => target > 0 ? Math.min(100, value / target * 100) : 0
-  return <div className="space-y-3"><div className="grid grid-cols-[38px_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-1 text-[10px] font-bold uppercase tracking-[.12em] text-zinc-600"><span>Day</span><span>Calories</span><span>Protein</span></div>{days.map(day => <div key={day.date} className="grid grid-cols-[38px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3 rounded-xl border border-white/[.045] bg-white/[.015] px-2 py-2.5"><div className="text-xs font-bold text-zinc-400">{day.label}</div>{day.logged ? <><div className="min-w-0"><div className="truncate text-[11px] font-semibold text-zinc-300">{fmt(day.kcal, 0)} <span className="font-normal text-zinc-600">/ {fmt(calorieTarget, 0)}</span></div><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full bg-amber-300" style={{ width: `${track(day.kcal, calorieTarget)}%` }}/></div></div><div className="min-w-0"><div className="truncate text-[11px] font-semibold text-zinc-300">{fmt(day.protein, 0)} g <span className="font-normal text-zinc-600">/ {fmt(proteinTarget, 0)}</span></div><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full bg-rose-300" style={{ width: `${track(day.protein, proteinTarget)}%` }}/></div></div></> : <><div className="text-[11px] text-zinc-700">{day.future ? 'Upcoming' : 'No log'}</div><div className="text-[11px] text-zinc-700">{day.future ? 'Upcoming' : 'No log'}</div></>}</div>)}</div>
 }
 function HistoryView({ data, mutate, notify, resetData, exportData }: { data: AnyRow; mutate: Mutate; notify: (message: string) => void; resetData: () => void; exportData: () => void }) {
   const [query, setQuery] = useState(''), [filter, setFilter] = useState('all')

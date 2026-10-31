@@ -22,7 +22,7 @@
   },
   "foods": [{ "id": "e2e-food", "name": "Oats E2E", "kcal100": 370, "p100": 16, "c100": 60, "f100": 8, "unit": "g", "source": "E2E fixture", "code": "E2E-FOOD-01" }],
   "supplements": { "items": [{ "id": "e2e-supplement", "name": "Supplement E2E", "dose": "3", "unit": "g" }], "logs": { "2026-10-25": { "e2e-supplement": true } } },
-  "workoutLogs": [{ "id": "e2e-strength", "date": "2026-10-25", "session": "Upper A", "set": 1, "exerciseKey": "bench_press_horizontal", "displayName": "Bench Press", "variant": "smith", "weight": 25, "reps": 10, "rir": 2, "painDuring": 0 }],
+  "workoutLogs": [{ "id": "e2e-strength", "date": "2026-10-31", "session": "Upper A", "set": 1, "exerciseKey": "bench_press_horizontal", "displayName": "Bench Press", "variant": "smith", "weight": 25, "reps": 10, "rir": 2, "painDuring": 0 }],
   "reinforcementLogs": [{ "id": "e2e-reinforcement", "date": "2026-10-25", "set": 1, "exerciseKey": "e2e_rehab_test", "exercise": "E2E rehab", "mode": "reps", "actualValue": 12, "actualRaw": "12", "resistance": 2.5, "pain": 0 }],
   "endurance": [
     { "id": "e2e-run-1", "date": "2026-09-20", "type": "Course", "session": "Course", "distanceKm": 3, "durationMin": 18.5, "rpe": 5, "pain": 0, "source": "E2E fixture" },
@@ -38,7 +38,7 @@
     { "id": "e2e-swim-5", "date": "2026-10-18", "type": "Natation", "session": "Natation", "distanceKm": 1, "durationMin": 29, "rpe": 5, "pain": 0, "source": "E2E fixture" },
     { "id": "e2e-swim-6", "date": "2026-10-25", "type": "Natation", "session": "Natation", "distanceKm": 1.1, "durationMin": 31, "rpe": 5, "pain": 0, "source": "E2E fixture" }
   ],
-  "variantChoices": { "2026-10-25|Upper A|bench_press_horizontal": "smith" },
+  "variantChoices": { "2026-10-31|Upper A|bench_press_horizontal": "smith" },
   "goalHistory": { "e2e_milestone": { "achieved": true, "date": "2026-10-25", "note": "E2E fixture" } },
   "calendarOverrides": { "2026-10-26": { "endurance": "Course", "note": "E2E fixture" } }
 }

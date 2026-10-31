@@ -1,6 +1,32 @@
 // Domain definitions ported from Road to Ironman V59.
 // Keep progression/domain data separate from the UI.
-export const PROGRAM_DEFS: Record<string, any> = {
+type LoadProfile = string | Record<string, string>
+type StrengthDefinition = {
+  key: string
+  name: string
+  sessions: string[]
+  target?: string
+  targetBySession?: Record<string, string>
+  muscles: string[]
+  material: string
+  variants?: string[]
+  variantLabels?: Record<string, string>
+  profile: LoadProfile
+}
+type ReinforcementDefinition = {
+  key: string
+  name: string
+  zone: string
+  mode: 'reps' | 'time' | 'perSide' | 'test'
+  unit: string
+  target: string
+  profile: LoadProfile
+  resistanceAllowed: boolean
+  perSide?: boolean
+  testOnly?: boolean
+}
+
+export const PROGRAM_DEFS: Record<string, StrengthDefinition> = {
   "bench_press_horizontal":{key:"bench_press_horizontal",name:"Bench Press",sessions:["Upper A"],target:"3×6–10",muscles:["Pectoraux","Deltoïde antérieur","Triceps"],material:"variant",variants:["smith","dumbbell"],variantLabels:{smith:"Smith machine",dumbbell:"Haltères"},profile:{smith:"smith",dumbbell:"dumbbell"}},
   "chest_supported_row":{key:"chest_supported_row",name:"Chest-Supported Row",sessions:["Upper A"],target:"3×8–12",muscles:["Haut du dos","Grand dorsal","Deltoïde postérieur"],material:"machine",profile:"machine5"},
   "neutral_grip_lat_pulldown":{key:"neutral_grip_lat_pulldown",name:"Neutral-Grip Lat Pulldown",sessions:["Upper A","Upper B"],targetBySession:{"Upper A":"3×8–12","Upper B":"2×8–12"},muscles:["Grand dorsal","Haut du dos","Biceps"],material:"machine",profile:"machine5"},
@@ -22,7 +48,7 @@ export const PROGRAM_DEFS: Record<string, any> = {
   "seated_calf_raise":{key:"seated_calf_raise",name:"Seated Calf Raise",sessions:["Lower B"],target:"3×10–20",muscles:["Soléaire"],material:"machine",profile:"machine5"}
 };
 
-export const REINFORCEMENT_DEFS: Record<string, any> = {
+export const REINFORCEMENT_DEFS: Record<string, ReinforcementDefinition> = {
   bird_dog:{key:"bird_dog",name:"Bird Dog",zone:"Back",mode:"perSide",unit:"/côté",target:"2×8–12/côté",profile:"bodyweight",resistanceAllowed:true},
   side_plank:{key:"side_plank",name:"Side plank",zone:"Back",mode:"time",unit:"s",target:"2×20–45 s",profile:"bodyweight",resistanceAllowed:true},
   hip_hinge:{key:"hip_hinge",name:"Hip Hinge Technique",zone:"Back",mode:"reps",unit:"reps",target:"2×10–15",profile:"bodyweight",resistanceAllowed:true},
