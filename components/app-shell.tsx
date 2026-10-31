@@ -3,15 +3,18 @@
 import { ChangeEvent, FormEvent, ReactNode, useEffect, useRef, useState } from 'react'
 import {
   Activity, AlertCircle, Beef, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Droplets, Dumbbell,
-  FileUp, Flag, Flame, History, LayoutDashboard, Plus, RefreshCw, Salad, Save, Sparkles,
+  FileUp, Flag, Flame, History, LayoutDashboard, Plus, Salad, Save, Sparkles,
   Target, Trash2, Waves, Weight, Wheat, X, Pencil,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Brand } from '@/components/brand'
 import { CYCLE, LOADS, PROGRAM_DEFS, REINFORCEMENT_DEFS, REINFORCEMENT_PLAN, START_DATE } from '@/lib/program'
 import { createExportPayload } from '@/lib/export-data'
+import { validateImportPayload } from '@/lib/import-data'
+import { validateCheckIn } from '@/lib/checkin'
 import { calculateIngredientNutrition } from '@/lib/nutrition'
 import { aggregateRunningPeriods } from '@/lib/running-series'
+import { splitProgressSegments } from '@/lib/progress-series'
 import { isStrengthSessionComplete as isFullStrengthSessionComplete, summarizePlannedSessions } from '@/lib/training-consistency'
 
 const STORAGE_KEY = 'roadToTriathlonV3'
@@ -287,6 +290,8 @@ export default function AppShell() {
   const [currentDay, setCurrentDay] = useState(START_DATE)
   const [data, setData] = useState<AnyRow>(() => baseState())
   const [hydrated, setHydrated] = useState(false)
+  const [storageLoadError, setStorageLoadError] = useState('')
+  const [storageWriteError, setStorageWriteError] = useState('')
   const [toast, setToast] = useState('')
   const navRef = useRef<HTMLDivElement>(null)
 
@@ -299,11 +304,25 @@ export default function AppShell() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) setData(normalizeState(JSON.parse(raw)))
-    } catch (error) { console.error('Could not load saved training data', error) }
+    } catch (error) {
+      console.error('Could not load saved training data', error)
+      setStorageLoadError('Saved data could not be read and has not been changed. Import a backup or delete this unreadable local copy to continue.')
+    }
     setHydrated(true)
   }, [])
   /* eslint-enable react-hooks/set-state-in-effect */
-  useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data, hydrated])
+  /* eslint-disable react-hooks/set-state-in-effect -- surface synchronous storage failures to the user */
+  useEffect(() => {
+    if (!hydrated || storageLoadError) return
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+      setStorageWriteError('')
+    } catch (error) {
+      console.error('Could not save training data', error)
+      setStorageWriteError('These changes could not be saved in this browser. Export them now to keep a backup.')
+    }
+  }, [data, hydrated, storageLoadError])
+  /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
     const node = navRef.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`)
     node?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
@@ -344,24 +363,21 @@ export default function AppShell() {
     const file = event.target.files?.[0]; if (!file) return
     try {
       const incoming = JSON.parse(await file.text())
-      if (!incoming || typeof incoming !== 'object') throw new Error('Invalid JSON')
+      const validation = validateImportPayload(incoming)
+      if (!validation.valid) throw new Error(validation.error || 'Invalid or unsupported JSON file.')
       if (!window.confirm('Import replaces the current app data. Export a backup first if you need to keep it. Continue?')) { event.target.value = ''; return }
       const normalized = normalizeState(incoming)
       // Original V59 normalizes daily measurements using sleepHours / shoulderPain etc.
+      setStorageLoadError('')
       setData(normalized)
       notify('Data imported successfully')
-    } catch (error) { console.error(error); notify('Invalid or unsupported JSON file') }
+    } catch (error) { console.error(error); notify(error instanceof Error ? error.message : 'Invalid or unsupported JSON file') }
     event.target.value = ''
   }
   const resetData = () => {
     if (!window.confirm('Delete all saved Road to Ironman data? This cannot be undone. Export first if needed.')) return
-    setData(baseState()); setSelectedDate(todayISO()); setCurrentDay(todayISO()); notify('All local data reset')
+    setStorageLoadError(''); setData(baseState()); setSelectedDate(todayISO()); setCurrentDay(todayISO()); notify('All local data reset')
   }
-  const resetDemo = () => {
-    if (!window.confirm('Reset to a clean starter state? Your current progress will be lost unless exported.')) return
-    setData(baseState()); notify('Starter state restored')
-  }
-  
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">
       <div className="mx-auto max-w-[1500px] px-4 pb-24 pt-4 sm:px-6 lg:px-8">
@@ -370,19 +386,19 @@ export default function AppShell() {
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <button onClick={exportData} className="glass inline-flex h-10 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-zinc-300 transition hover:border-white/15"><Download size={15}/> Export</button>
             <label className="glass inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl px-3 text-xs font-semibold text-zinc-300 transition hover:border-white/15"><FileUp size={15}/> Import<input type="file" accept=".json,application/json" className="hidden" onChange={importData}/></label>
-            <button onClick={resetDemo} className="glass inline-flex h-10 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-zinc-300 transition hover:border-white/15"><RefreshCw size={15}/> Reset</button>
           </div>
         </header>
         <nav ref={navRef} className="no-scrollbar sticky top-0 z-40 mt-5 flex justify-start gap-2 overflow-x-auto bg-[linear-gradient(var(--background)_76%,transparent)] py-3 backdrop-blur-xl sm:justify-center" aria-label="Main navigation">
           {tabs.map(({ id, label, icon: Icon }) => <button key={id} data-tab={id} onClick={() => setTab(id)} className={cn('flex h-11 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition', tab === id ? 'border-[var(--accent)]/40 bg-[var(--accent)] text-black shadow-[0_0_35px_rgba(202,255,74,.12)]' : 'border-white/8 bg-white/[.03] text-zinc-400 hover:bg-white/[.06] hover:text-white')}><Icon size={16}/>{label}</button>)}
         </nav>
         <main className="mt-4 space-y-5">
-          {!hydrated ? <div className={cardClass('py-16 text-center text-sm text-zinc-500')}>Loading your local training data…</div> : <>
+          {storageWriteError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[.06] px-4 py-3 text-xs text-amber-100"><span>{storageWriteError}</span><PrimaryButton secondary onClick={exportData}><Download size={14}/> Export changes</PrimaryButton></div>}
+          {!hydrated ? <div className={cardClass('py-16 text-center text-sm text-zinc-500')}>Loading your local training data…</div> : storageLoadError ? <div role="alert" className={cn(cardClass(), 'border border-amber-300/20 text-sm text-amber-100')}><p>{storageLoadError}</p><div className="mt-4"><PrimaryButton danger onClick={resetData}><Trash2 size={14}/> Delete unreadable data</PrimaryButton></div></div> : <>
             {tab === 'dashboard' && <DashboardView data={data} mutate={mutate} setTab={setTab} setDate={setSelectedDate} notify={notify} />}
             {tab === 'training' && <TrainingView data={data} mutate={mutate} date={selectedDate} setDate={setSelectedDate} notify={notify} />}
             {tab === 'nutrition' && <NutritionView data={data} mutate={mutate} date={selectedDate} setDate={setSelectedDate} notify={notify} />}
             {tab === 'goals' && <><GoalsView key={JSON.stringify(data.goals)} data={data} mutate={mutate} notify={notify} /><TrainingProgressView data={data}/></>}
-            {tab === 'history' && <HistoryView data={data} mutate={mutate} notify={notify} resetData={resetData} exportData={exportData} />}
+            {tab === 'history' && <HistoryView data={data} resetData={resetData} exportData={exportData} />}
           </>}
         </main>
         <footer className="mt-10 text-center text-[10px] font-medium tracking-wide text-zinc-700">ROAD TO IRONMAN · LOCAL-FIRST DATA · JSON IMPORT / EXPORT · V59 FEATURE SET</footer>
@@ -425,6 +441,8 @@ function DashboardView({ data, mutate, setTab, setDate, notify }: { data: AnyRow
   useEffect(() => setForm({ weight: daily.weight ?? '', sleep: daily.sleep ?? '', shoulder: daily.shoulder ?? '', ankle: daily.ankle ?? '', back: daily.back ?? '', notes: daily.notes || '' }), [today, daily.weight, daily.sleep, daily.shoulder, daily.ankle, daily.back, daily.notes])
   const saveCheckin = () => {
     if (daily.saved) { notify('Today’s check-in is already locked'); return }
+    const validationError = validateCheckIn(form)
+    if (validationError) { notify(validationError); return }
     mutate(d => { d.daily[today] = { ...(d.daily[today] || {}), weight: n(form.weight), sleep: n(form.sleep), shoulder: n(form.shoulder), ankle: n(form.ankle), back: n(form.back), notes: form.notes.trim(), saved: true } })
     notify('Daily check-in saved')
   }
@@ -566,7 +584,7 @@ function NutritionView({ data, mutate, date, setDate, notify }: { data: AnyRow; 
   const lastFoodSearchAt = useRef(0)
   const [suppForm, setSuppForm] = useState({ name: '', dose: '', unit: 'g' })
   const totals = totalNutrition(data, date), bySlot = data.mealLogs[date] || {}
-  const foodOptions = [...DEFAULT_FOODS, ...foodSearchResults]
+  const foodOptions = [...new Map([...DEFAULT_FOODS, ...data.foods, ...foodSearchResults].map((food: AnyRow) => [food.id, food])).values()]
   const formTotals = mealForm.mode === 'ingredients'
     ? calculateIngredients(mealForm.ingredients.map(item => ({ ...item, grams: n(item.grams, 0) || 0 })))
     : { kcal: n(mealForm.kcal, 0) || 0, p: n(mealForm.p, 0) || 0, c: n(mealForm.c, 0) || 0, f: n(mealForm.f, 0) || 0 }
@@ -594,9 +612,12 @@ function NutritionView({ data, mutate, date, setDate, notify }: { data: AnyRow; 
     const ingredients = f.ingredients.length === 1 && !f.ingredients[0].name ? [item] : [...f.ingredients, item]
     return { ...f, mode: 'ingredients', ingredients }
     })
+    if (food.source === 'Open Food Facts') {
+      mutate(d => { if (!d.foods.some((saved: AnyRow) => saved.id === food.id)) d.foods.push({ ...food }) })
+    }
     setFoodSearchResults([])
     setFoodSearchTerm('')
-    notify(`${food.name} added to meal`)
+    notify(food.source === 'Open Food Facts' ? `${food.name} added and saved for future meals` : `${food.name} added to meal`)
   }
   const updateIngredient = (id: string, field: string, value: string) => setMealForm(f => ({ ...f, ingredients: f.ingredients.map(item => {
     if (item.id !== id) return item
@@ -716,6 +737,22 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
   }
   const isStrengthSessionComplete = (date: string, session: string) => isFullStrengthSessionComplete(data.workoutLogs, Object.values(PROGRAM_DEFS), date, session, (def, currentSession) => setCount(targetFor(def, currentSession)))
   const { completed: completedSessions, inProgress: inProgressSessions } = summarizePlannedSessions(plannedSessions, data.workoutLogs, data.endurance, isStrengthSessionComplete)
+  const partialSessions = plannedSessions.filter(item => item.kind === 'strength' && !isStrengthSessionComplete(item.date, item.session || '') && data.workoutLogs.some((log: AnyRow) => log.date === item.date && log.session === item.session)).map(item => {
+    const session = item.session || ''
+    const definitions = Object.values(PROGRAM_DEFS).filter(definition => definition.sessions.includes(session))
+    const exerciseProgress = definitions.map(definition => {
+      const rows = data.workoutLogs.filter((log: AnyRow) => log.date === item.date && log.session === session && log.exerciseKey === definition.key)
+      const required = setCount(targetFor(definition, session))
+      return { name: definition.name, logged: Math.min(rows.length, required), required }
+    })
+    return {
+      session,
+      loggedSets: exerciseProgress.reduce((sum, exercise) => sum + exercise.logged, 0),
+      totalSets: exerciseProgress.reduce((sum, exercise) => sum + exercise.required, 0),
+      exercises: exerciseProgress.filter(exercise => exercise.logged > 0),
+      totalExercises: exerciseProgress.length,
+    }
+  })
   const consistency = plannedSessions.length ? Math.round(completedSessions / plannedSessions.length * 100) : 0
   const monthStart = (offset: number) => {
     const date = new Date(`${today.slice(0, 7)}-01T12:00:00`)
@@ -783,7 +820,7 @@ function GoalsView({ data, mutate, notify }: { data: AnyRow; mutate: Mutate; not
     <section className="flex flex-wrap items-end justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-[.24em] text-[var(--accent)]">Road to Ironman</div><h1 className="mt-2 text-4xl font-black tracking-[-.05em] sm:text-5xl">Progress</h1><p className="mt-2 text-sm text-zinc-400">Your training, made visible.</p></div><Badge tone="lime">Week of {formatDate(weekStart, { day: 'numeric', month: 'short' })}</Badge></section>
     <section className="overflow-hidden rounded-[26px] border border-[var(--accent)]/20 bg-gradient-to-br from-emerald-400/[.09] via-emerald-300/[.035] to-white/[.015] p-5 sm:p-7">
       <div className="flex items-center justify-between gap-5"><div><div className="text-xs font-bold uppercase tracking-[.2em] text-[var(--accent)]/80">Week to date</div><h2 className="mt-2 text-2xl font-black tracking-tight">Training consistency</h2><p className="mt-1 text-sm text-zinc-400">Completed planned sessions · {formatDate(weekStart)} – {formatDate(today)}</p></div><div className="relative grid h-[92px] w-[92px] shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(var(--accent) ${consistency}%, rgba(255,255,255,.08) 0)` }}><div className="grid h-[74px] w-[74px] place-items-center rounded-full bg-[#111512] text-xl font-black">{consistency}%</div></div></div>
-      <div className="mt-6 grid grid-cols-2 gap-3"><div className="rounded-2xl border border-white/8 bg-black/20 p-4"><div className="text-xs text-zinc-400">Sessions completed</div><div className="mt-2 text-3xl font-black">{completedSessions}<span className="text-lg text-zinc-500">/{plannedSessions.length}</span></div><div className="mt-1 text-xs text-zinc-500">Planned sessions this week</div></div><div className="rounded-2xl border border-white/8 bg-black/20 p-4"><div className="text-xs text-zinc-400">Sessions in progress</div><div className="mt-2 text-3xl font-black">{inProgressSessions}</div><div className="mt-1 text-xs text-zinc-500">Partially logged strength sessions</div></div></div>
+      <div className="mt-6 grid grid-cols-2 gap-3"><div className="rounded-2xl border border-white/8 bg-black/20 p-4"><div className="text-xs text-zinc-400">Sessions completed</div><div className="mt-2 text-3xl font-black">{completedSessions}<span className="text-lg text-zinc-500">/{plannedSessions.length}</span></div><div className="mt-1 text-xs text-zinc-500">Fully completed planned sessions</div></div><div className="rounded-2xl border border-amber-300/15 bg-amber-300/[.035] p-4"><div className="text-xs text-amber-100/70">Partially logged</div><div className="mt-2 text-3xl font-black">{inProgressSessions}</div><div className="mt-1 text-xs text-zinc-500">Not included in completed count</div>{partialSessions.length > 0 ? <div className="mt-3 space-y-2 border-t border-white/7 pt-3">{partialSessions.map(partial => <div key={`${partial.session}-${partial.loggedSets}`} className="text-[11px] leading-4"><div className="font-bold text-zinc-200">{partial.session} · {partial.loggedSets}/{partial.totalSets} sets</div><div className="mt-0.5 text-zinc-500">{partial.exercises.map(exercise => `${exercise.name} ${exercise.logged}/${exercise.required}`).join(' · ')} · {partial.exercises.length}/{partial.totalExercises} exercises started</div></div>)}</div> : <div className="mt-1 text-xs text-zinc-500">No unfinished strength sessions.</div>}</div></div>
     </section>
     <section className={cn(cardClass('!p-5 sm:!p-6'), 'overflow-hidden')}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3"><div className="min-w-0"><h2 className="text-xl font-black">Progress trend</h2><p className="mt-1 text-xs text-zinc-500">{metricLabel} · {periodLabel}</p></div><div className="relative shrink-0"><label className="sr-only" htmlFor="progress-chart-metric">Choose graph</label><select id="progress-chart-metric" value={chartMetric} onChange={event => setChartMetric(event.target.value as 'weight' | 'run' | 'swim' | 'nutrition')} className="h-6 w-[102px] min-w-[102px] appearance-none rounded-full border border-white/8 bg-white/[.04] px-2 pr-6 text-[9px] font-bold uppercase tracking-[.04em] text-zinc-300 outline-none focus:border-[var(--accent)]/40" style={{ backgroundImage: 'none', fontSize: 9 }}><option value="weight">Weight</option><option value="run">Running</option><option value="swim">Swimming</option><option value="nutrition">Nutrition</option></select><ChevronDown size={9} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500"/></div></div>
@@ -861,13 +898,20 @@ function GoalsProgressChart({ points, unit, emptyMessage, target, nutritionPoint
   const width = 600, height = 280, left = 44, right = 18, top = 20, bottom = 38
   const x = (index: number) => left + index * (width - left - right) / Math.max(1, points.length - 1)
   const y = (value: number) => top + (high - value) * (height - top - bottom) / (high - low || 1)
-  const valid = points.map((point, index) => point.value === null ? null : { x: x(index), y: y(point.value), value: point.value }).filter((point): point is { x: number; y: number; value: number } => point !== null)
-  const linePath = valid.reduce((path, point, index) => {
-    if (index === 0) return `M ${point.x} ${point.y}`
-    const previous = valid[index - 1], controlX = (previous.x + point.x) / 2
+  const segments = splitProgressSegments(points).map(segment => segment.map(point => ({ x: x(points.indexOf(point)), y: y(point.value) })))
+  const linePath = segments.map(segment => segment.reduce((path, point, index) => {
+    if (index === 0) return `${path}M ${point.x} ${point.y}`
+    const previous = segment[index - 1], controlX = (previous.x + point.x) / 2
     return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`
-  }, '')
-  const areaPath = valid.length ? `${linePath} L ${valid[valid.length - 1].x} ${height - bottom} L ${valid[0].x} ${height - bottom} Z` : ''
+  }, '')).join(' ')
+  const areaPath = segments.filter(segment => segment.length > 1).map(segment => {
+    const line = segment.reduce((path, point, index) => {
+      if (index === 0) return `M ${point.x} ${point.y}`
+      const previous = segment[index - 1], controlX = (previous.x + point.x) / 2
+      return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`
+    }, '')
+    return `${line} L ${segment[segment.length - 1].x} ${height - bottom} L ${segment[0].x} ${height - bottom} Z`
+  }).join(' ')
   return <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible" role="img" aria-label={`${unit === 'kg' ? 'Weight' : 'Distance'} progression over the selected periods`}>
     <defs><linearGradient id="progress-line" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stopColor="#caff4a"/><stop offset="100%" stopColor="#66d9d0"/></linearGradient><linearGradient id="progress-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#caff4a" stopOpacity=".17"/><stop offset="100%" stopColor="#66d9d0" stopOpacity="0"/></linearGradient></defs>
     {[0, .5, 1].map(fraction => { const value = low + (high - low) * fraction, yy = y(value); return <g key={fraction}><line x1={left} x2={width - right} y1={yy} y2={yy} stroke="rgba(255,255,255,.075)"/><text x={left - 8} y={yy + 3} textAnchor="end" fontSize="11" fill="#717a84">{fmt(value, unit === 'kg' ? 0 : 1)}</text></g> })}
@@ -912,19 +956,19 @@ function NutritionProgressChart({ points, emptyMessage }: { points: Array<{ labe
     </svg>
   </div>
 }
-function HistoryView({ data, mutate, notify, resetData, exportData }: { data: AnyRow; mutate: Mutate; notify: (message: string) => void; resetData: () => void; exportData: () => void }) {
+function HistoryView({ data, resetData, exportData }: { data: AnyRow; resetData: () => void; exportData: () => void }) {
   const [query, setQuery] = useState(''), [filter, setFilter] = useState('all')
-  const grouped: Record<string, Array<{ id: string; type: string; text: string; category: string; remove: () => void }>> = {}
-  const add = (date: string, item: { id: string; type: string; text: string; category: string; remove: () => void }) => { (grouped[date] ||= []).push(item) }
-  Object.entries(data.daily as Record<string, AnyRow>).forEach(([date, row]: [string, AnyRow]) => { const details = [row.weight != null && `weight ${fmt(row.weight)} kg`, row.sleep != null && `sleep ${fmt(row.sleep)} h`, row.shoulder != null && `shoulder ${row.shoulder}/10`, row.ankle != null && `ankle ${row.ankle}/10`, row.back != null && `back ${row.back}/10`, row.notes && `notes: ${row.notes}`].filter(Boolean).join(' · '); if (details) add(date, { id: `daily-${date}`, type: 'Check-in', text: details, category: 'checkin', remove: () => { if (!window.confirm('Delete this daily check-in?')) return; mutate(d => { delete d.daily[date] }); notify('Check-in deleted') } }) })
-  data.workoutLogs.forEach((row: AnyRow) => add(row.date, { id: row.id, type: row.displayName || row.exerciseKey, text: `Set ${row.set} · ${fmt(row.weight)} kg × ${row.reps} · RIR ${row.rir} · pain ${row.painDuring ?? row.pain ?? 0}/10${row.variant && row.variant !== 'legacy' ? ` · ${row.variant}` : ''}`, category: 'strength', remove: () => { mutate(d => { d.workoutLogs = d.workoutLogs.filter((x: AnyRow) => x.id !== row.id) }); notify('Workout entry deleted') } }))
-  data.reinforcementLogs.forEach((row: AnyRow) => add(row.date, { id: row.id, type: row.exercise || row.exerciseKey, text: `Set ${row.set} · ${row.actualValue} ${row.mode === 'time' ? 'sec' : row.mode === 'test' ? 'test' : 'reps'} · resistance ${fmt(row.resistance)} kg · pain ${fmt(row.pain)}/10`, category: 'reinforcement', remove: () => { mutate(d => { d.reinforcementLogs = d.reinforcementLogs.filter((x: AnyRow) => x.id !== row.id) }); notify('Reinforcement entry deleted') } }))
-  data.endurance.forEach((row: AnyRow) => add(row.date, { id: row.id, type: row.type, text: `${fmt(row.distanceKm, 2)} km · ${row.durationMin} min · RPE ${row.rpe} · pain ${row.pain}/10`, category: 'endurance', remove: () => { mutate(d => { d.endurance = d.endurance.filter((x: AnyRow) => x.id !== row.id) }); notify('Endurance entry deleted') } }))
-  Object.entries(data.mealLogs as Record<string, AnyRow>).forEach(([date, mealSlots]: [string, AnyRow]) => Object.entries(mealSlots as Record<string, AnyRow> || {}).forEach(([slot, entry]: [string, AnyRow]) => { const snap = entry?.snapshot; if (snap) add(date, { id: `${date}-${slot}`, type: `${slots.find(x => x.id === slot)?.label || slot}: ${snap.name}`, text: `${Math.round(snap.kcal || 0)} kcal · ${fmt(snap.p, 0)} g protein · ${fmt(snap.c, 0)} g carbs · ${fmt(snap.f, 0)} g fat`, category: 'nutrition', remove: () => { if (!window.confirm('Remove this meal from this day?')) return; mutate(d => { delete d.mealLogs[date][slot] }); notify('Meal removed from day') } }) }))
+  const grouped: Record<string, Array<{ id: string; type: string; text: string; category: string }>> = {}
+  const add = (date: string, item: { id: string; type: string; text: string; category: string }) => { (grouped[date] ||= []).push(item) }
+  Object.entries(data.daily as Record<string, AnyRow>).forEach(([date, row]: [string, AnyRow]) => { const details = [row.weight != null && `weight ${fmt(row.weight)} kg`, row.sleep != null && `sleep ${fmt(row.sleep)} h`, row.shoulder != null && `shoulder ${row.shoulder}/10`, row.ankle != null && `ankle ${row.ankle}/10`, row.back != null && `back ${row.back}/10`, row.notes && `notes: ${row.notes}`].filter(Boolean).join(' · '); if (details) add(date, { id: `daily-${date}`, type: 'Check-in', text: details, category: 'checkin' }) })
+  data.workoutLogs.forEach((row: AnyRow) => add(row.date, { id: row.id, type: row.displayName || row.exerciseKey, text: `Set ${row.set} · ${fmt(row.weight)} kg × ${row.reps} · RIR ${row.rir} · pain ${row.painDuring ?? row.pain ?? 0}/10${row.variant && row.variant !== 'legacy' ? ` · ${row.variant}` : ''}`, category: 'strength' }))
+  data.reinforcementLogs.forEach((row: AnyRow) => add(row.date, { id: row.id, type: row.exercise || row.exerciseKey, text: `Set ${row.set} · ${row.actualValue} ${row.mode === 'time' ? 'sec' : row.mode === 'test' ? 'test' : 'reps'} · resistance ${fmt(row.resistance)} kg · pain ${fmt(row.pain)}/10`, category: 'reinforcement' }))
+  data.endurance.forEach((row: AnyRow) => add(row.date, { id: row.id, type: row.type, text: `${fmt(row.distanceKm, 2)} km · ${row.durationMin} min · RPE ${row.rpe} · pain ${row.pain}/10`, category: 'endurance' }))
+  Object.entries(data.mealLogs as Record<string, AnyRow>).forEach(([date, mealSlots]: [string, AnyRow]) => Object.entries(mealSlots as Record<string, AnyRow> || {}).forEach(([slot, entry]: [string, AnyRow]) => { const snap = entry?.snapshot; if (snap) add(date, { id: `${date}-${slot}`, type: `${slots.find(x => x.id === slot)?.label || slot}: ${snap.name}`, text: `${Math.round(snap.kcal || 0)} kcal · ${fmt(snap.p, 0)} g protein · ${fmt(snap.c, 0)} g carbs · ${fmt(snap.f, 0)} g fat`, category: 'nutrition' }) }))
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
   const totalEntries = Object.values(grouped).reduce((sum, rows) => sum + rows.length, 0)
   return <div className="space-y-5"><section><h1 className="text-3xl font-black tracking-[-.04em]">History</h1></section>
-    <section className={cardClass()}><div className="grid gap-3 sm:grid-cols-[1fr_220px_auto]"><Field label="Search history" type="text" value={query} onChange={setQuery} placeholder="Search exercises, notes, meals…"/><label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.15em] text-zinc-600">Type</span><select value={filter} onChange={e => setFilter(e.target.value)} className="h-11 w-full rounded-xl border border-white/8 bg-black/20 px-3 text-sm"><option value="all">All entries</option><option value="checkin">Check-ins</option><option value="strength">Strength</option><option value="reinforcement">Reinforcement</option><option value="endurance">Endurance</option><option value="nutrition">Nutrition</option></select></label><div className="flex items-end"><Badge>{totalEntries} entries</Badge></div></div><div className="mt-5 space-y-4">{dates.map(date => { const filtered = grouped[date].filter(row => (filter === 'all' || row.category === filter) && `${row.type} ${row.text}`.toLowerCase().includes(query.toLowerCase())); if (!filtered.length) return null; return <div key={date}><div className="mb-2 flex items-center gap-3 bg-transparent py-2"><span className="text-xs font-black uppercase tracking-[.15em] text-zinc-500">{formatDate(date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span><div className="h-px flex-1 bg-white/7"/></div><div className="space-y-2">{filtered.map(row => <div key={row.id} className="flex items-start gap-3 rounded-xl border border-white/7 bg-white/[.02] p-3"><div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[.04] text-zinc-500">{row.category === 'strength' ? <Dumbbell size={14}/> : row.category === 'endurance' ? <Activity size={14}/> : row.category === 'nutrition' ? <Salad size={14}/> : row.category === 'checkin' ? <Weight size={14}/> : <Sparkles size={14}/>}</div><div className="min-w-0 flex-1"><div className="break-words text-sm font-bold">{row.type}</div><div className="mt-1 break-words text-xs leading-5 text-zinc-500">{row.text}</div></div><button aria-label="Delete history record" onClick={row.remove} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-600 hover:bg-red-400/10 hover:text-red-300"><Trash2 size={14}/></button></div>)}</div></div> })}{!dates.some(date => grouped[date].some(row => (filter === 'all' || row.category === filter) && `${row.type} ${row.text}`.toLowerCase().includes(query.toLowerCase()))) && <Empty text="No history entries match your filter."/>}</div></section>
+    <section className={cardClass()}><div className="grid gap-3 sm:grid-cols-[1fr_220px_auto]"><Field label="Search history" type="text" value={query} onChange={setQuery} placeholder="Search exercises, notes, meals…"/><label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.15em] text-zinc-600">Type</span><select value={filter} onChange={e => setFilter(e.target.value)} className="h-11 w-full rounded-xl border border-white/8 bg-black/20 px-3 text-sm"><option value="all">All entries</option><option value="checkin">Check-ins</option><option value="strength">Strength</option><option value="reinforcement">Reinforcement</option><option value="endurance">Endurance</option><option value="nutrition">Nutrition</option></select></label><div className="flex items-end"><Badge>{totalEntries} entries</Badge></div></div><div className="mt-5 space-y-4">{dates.map(date => { const filtered = grouped[date].filter(row => (filter === 'all' || row.category === filter) && `${row.type} ${row.text}`.toLowerCase().includes(query.toLowerCase())); if (!filtered.length) return null; return <div key={date}><div className="mb-2 flex items-center gap-3 bg-transparent py-2"><span className="text-xs font-black uppercase tracking-[.15em] text-zinc-500">{formatDate(date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span><div className="h-px flex-1 bg-white/7"/></div><div className="space-y-2">{filtered.map(row => <div key={row.id} className="flex items-start gap-3 rounded-xl border border-white/7 bg-white/[.02] p-3"><div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[.04] text-zinc-500">{row.category === 'strength' ? <Dumbbell size={14}/> : row.category === 'endurance' ? <Activity size={14}/> : row.category === 'nutrition' ? <Salad size={14}/> : row.category === 'checkin' ? <Weight size={14}/> : <Sparkles size={14}/>}</div><div className="min-w-0 flex-1"><div className="break-words text-sm font-bold">{row.type}</div><div className="mt-1 break-words text-xs leading-5 text-zinc-500">{row.text}</div></div></div>)}</div></div> })}{!dates.some(date => grouped[date].some(row => (filter === 'all' || row.category === filter) && `${row.type} ${row.text}`.toLowerCase().includes(query.toLowerCase()))) && <Empty text="No history entries match your filter."/>}</div></section>
     <section className="grid gap-4 sm:grid-cols-2"><div className={cardClass()}><SectionHead title="Backup your data"/><div className="mt-5 flex justify-center"><PrimaryButton onClick={exportData}><Download size={14}/> Export all data</PrimaryButton></div></div><div className={cardClass()}><SectionHead title="Danger zone" meta="Irreversible"/><p className="mt-3 text-xs leading-5 text-zinc-500">Reset permanently clears data stored in this browser for the app. Export a JSON backup first.</p><div className="mt-5 flex justify-center"><PrimaryButton danger onClick={resetData}><Trash2 size={14}/> Delete all data</PrimaryButton></div></div></section>
   </div>
 }

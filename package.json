@@ -7,11 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "npm run test:training && npm run test:export && npm run test:nutrition && npm run test:running",
+    "test": "npm run test:training && npm run test:export && npm run test:import && npm run test:checkin && npm run test:nutrition && npm run test:running && npm run test:progress",
     "test:export": "node --experimental-strip-types --test tests/export-roundtrip.test.mjs",
+    "test:import": "node --experimental-strip-types --test tests/import-validation.test.mjs",
+    "test:checkin": "node --experimental-strip-types --test tests/checkin.test.mjs",
+    "test:e2e": "playwright test",
     "test:training": "node --experimental-strip-types --test tests/training-consistency.test.mjs",
     "test:nutrition": "node --experimental-strip-types --test tests/nutrition.test.mjs",
-    "test:running": "node --experimental-strip-types --test tests/running-series.test.mjs"
+    "test:running": "node --experimental-strip-types --test tests/running-series.test.mjs",
+    "test:progress": "node --experimental-strip-types --test tests/progress-series.test.mjs"
   },
   "dependencies": {
     "lucide-react": "1.48.0",
@@ -21,6 +25,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.10.0",
     "@types/react": "19.2.13",
